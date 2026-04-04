@@ -8,9 +8,14 @@ sudo apt install -y maven
 java -version
 mvn --version
 
-cd desktop
+# Cài driver
+cd src/driver
+make clean
+make
+make install
 
 # Build project
+cd desktop
 mvn clean javafx:run
 
 # Hoặc build thành file JAR

@@ -1,5 +1,6 @@
 package com.chatty.services;
 
+import com.chatty.AppConfig;
 import com.google.gson.Gson;
 import okhttp3.*;
 import java.io.IOException;
@@ -9,7 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 // lớp đóng vai trò trung gian giao tiếp với backend
 public class ApiService {
-    private static final String BASE_URL = "https://realtimechatapp-3xx5.onrender.com";
+    private static final String BASE_URL = AppConfig.getApiUrl();
     private final OkHttpClient client;
     private final Gson gson;
     private final CookieJar cookieJar;
@@ -21,6 +22,7 @@ public class ApiService {
                 .cookieJar(cookieJar)
                 .build();
         this.gson = new Gson();
+        System.out.println("API Base URL: " + BASE_URL + " (Môi trường: " + AppConfig.getEnvironmentName() + ")");
     }
 
     private static class MemoryCookieJar implements CookieJar {

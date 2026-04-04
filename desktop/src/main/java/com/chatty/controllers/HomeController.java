@@ -1815,6 +1815,9 @@ public class HomeController {
             localMsg.setCreatedAt(Instant.now().toString());
             messages.add(localMsg);
             renderMessages();
+            
+            // Cập nhật lastmessage ở sidebar ngay lập tức
+            updateSidebarLastMessage(localMsg);
         }
 
         // xóa sạch nội dung trong trường nhập tin nhắn mỗi khi gửi đi

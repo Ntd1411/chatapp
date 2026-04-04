@@ -1,5 +1,6 @@
 package com.chatty.services;
 
+import com.chatty.AppConfig;
 import com.chatty.models.GroupMessage;
 import com.chatty.models.Message;
 import com.google.gson.Gson;
@@ -22,6 +23,15 @@ public class SocketService {
 
     private Socket socket;
     private final Gson gson;
+    
+    // Sử dụng URL từ AppConfig để hỗ trợ nhiều môi trường
+    private static String SOCKET_URL = AppConfig.getApiUrl();
+    
+    // Để thay đổi URL động cho development/production
+    public static void setSocketUrl(String url) {
+        SOCKET_URL = url;
+        System.out.println("Socket URL cập nhật: " + SOCKET_URL);
+    }
 
     private List<String> onlineUsers;
 
@@ -58,12 +68,24 @@ public class SocketService {
             if (ApiService.authToken != null) {
                 opts.auth = Collections.singletonMap("token", ApiService.authToken);
             } else {
-                System.err.println("Token chưa có");
+                System.err.println("Token chưa có - Socket kết nối không được xác thực");
             }
 
-            socket = IO.socket("http://localhost:3000", opts);
+            System.out.println("Đang kết nối Socket đến: " + SOCKET_URL);
+            socket = IO.socket(SOCKET_URL, opts);
 
-            socket.on(Socket.EVENT_CONNECT, args -> System.out.println("Socket connected"));
+            socket.on(Socket.EVENT_CONNECT, args -> {
+                System.out.println("Socket connected!");
+            });
+            
+            socket.on(Socket.EVENT_CONNECT_ERROR, args -> {
+                String errorMsg = (args.length > 0) ? args[0].toString() : "Unknown error";
+                System.err.println("Socket CONNECTION ERROR: " + errorMsg);
+            });
+            
+            socket.on(Socket.EVENT_DISCONNECT, args -> {
+                System.out.println("Socket disconnected");
+            });
 
             // ===== online users =====
             socket.on("noti-onlineList-toMe", args -> {
