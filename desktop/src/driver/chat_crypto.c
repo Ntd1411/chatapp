@@ -7,6 +7,8 @@
 #include <linux/crypto.h>
 #include <linux/scatterlist.h>
 #include <linux/string.h>
+#include <crypto/hash.h>
+#include <crypto/skcipher.h>
 
 #include "./include/crypto_module.h"
 
