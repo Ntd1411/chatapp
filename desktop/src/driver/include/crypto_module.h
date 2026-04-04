@@ -3,36 +3,41 @@
 
 #include <linux/ioctl.h>
 
+/* Device file */
 #define CRYPTO_DEVICE_FILE "/dev/chat_crypto"
 
-// SHA1 constants
-#define SHA1_DIGEST_SIZE  20
-#define SHA1_MAX_INPUT    512
+/* Constants */
+#define SHA1_DIGEST_SIZE 20
+#define SHA1_MAX_INPUT 4096
+#define DES_KEY_SIZE 8
+#define MAX_CRYPTO_DATA 4096
 
-// DES constants
-#define DES_KEY_SIZE      8
-#define DES_MAX_INPUT     512
-#define DES_MAX_OUTPUT    512
+/* Error codes */
+#define CRYPTO_OK 0
+#define CRYPTO_ERR_NO_DEVICE -1
+#define CRYPTO_ERR_INPUT -2
+#define CRYPTO_ERR_IOCTL -3
 
-// Struct cho SHA1
+/* IOCTL command codes */
+#define CRYPTO_IOCTL_MAGIC 0xC0
+#define CRYPTO_IOCTL_SHA1_HASH _IOWR(CRYPTO_IOCTL_MAGIC, 1, struct sha1_request)
+#define CRYPTO_IOCTL_DES_ENCRYPT _IOWR(CRYPTO_IOCTL_MAGIC, 2, struct des_request)
+#define CRYPTO_IOCTL_DES_DECRYPT _IOWR(CRYPTO_IOCTL_MAGIC, 3, struct des_request)
+
+/* Request structures for IOCTL - userspace compatible */
 struct sha1_request {
     unsigned char input[SHA1_MAX_INPUT];
-    unsigned int  input_len;
+    size_t input_len;
     unsigned char digest[SHA1_DIGEST_SIZE];
 };
 
-// Struct cho DES
 struct des_request {
-    unsigned char input[DES_MAX_INPUT];
-    unsigned int  input_len;
-    unsigned char output[DES_MAX_OUTPUT];
-    unsigned int  output_len;
     unsigned char key[DES_KEY_SIZE];
-    unsigned int  mode; // 0 = encrypt, 1 = decrypt
+    unsigned char input[MAX_CRYPTO_DATA];
+    size_t input_len;
+    unsigned char output[MAX_CRYPTO_DATA];
+    size_t output_len;
+    int mode;  /* 0 = encrypt, 1 = decrypt */
 };
 
-// IOCTL commands
-#define CRYPTO_IOCTL_SHA1_HASH _IOWR('C', 1, struct sha1_request)
-#define CRYPTO_IOCTL_DES_CRYPT _IOWR('C', 2, struct des_request)
-
-#endif
+#endif /* CRYPTO_MODULE_H */
