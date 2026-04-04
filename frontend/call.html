@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>Video Call</title>
+  <link rel="stylesheet" href="./styles/main.css" />
+</head>
+<body>
+
+<div class="call-container">
+  <video id="localVideo" autoplay muted playsinline></video>
+  <video id="remoteVideo" autoplay playsinline></video>
+
+  <button id="endCallBtn">❌ Kết thúc</button>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="./js/call.js"></script>
+</body>
+</html>

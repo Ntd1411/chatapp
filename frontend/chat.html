@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat - Realtime Chat App</title>
+  <link rel="stylesheet" href="/src/styles/main.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Chat page -->
+    <div class="chat-container">
+      <div class="chat-header">
+        <div class="user-info">
+          Real Time Chat
+        </div>
+        <div class="header-actions">
+          <div class="profile-card" id="profile-card">
+            <div class="profile-avatar" id="profile-avatar">?</div>
+            <div class="profile-meta">
+              <p id="profile-name">Đang tải...</p>
+              <span id="profile-email"></span>
+            </div>
+          </div>
+          <button id="logout-btn" class="btn btn-secondary">Đăng xuất</button>
+        </div>
+      </div>
+      
+      <div class="chat-body">
+        <!-- Sidebar -->
+        <div class="sidebar">
+          <div class="search-box">
+            <input type="text" id="search-input" placeholder="Tìm kiếm..." />
+          </div>
+          <div class="sidebar-header">
+            <div class="sidebar-tabs">
+              <button class="tab-btn active" data-tab="users">👥 Người dùng</button>
+              <button class="tab-btn" data-tab="groups">👥 Nhóm</button>
+            </div>
+          </div>
+          <div id="users-list" class="users-list tab-content active">
+            <!-- Users will be loaded here -->
+          </div>
+          <div id="groups-list" class="groups-list tab-content" style="display: none;">
+            <!-- Groups will be loaded here -->
+            <button id="create-group-btn" class="btn btn-primary btn-create-group">+ Tạo nhóm</button>
+          </div>
+        </div>
+
+        <!-- Chat area -->
+        <div class="chat-area">
+          <div id="no-chat-selected" class="no-chat-selected">
+            <p>Chọn một người dùng hoặc một nhóm để bắt đầu chat</p>
+          </div>
+
+          <div id="chat-messages-container" class="chat-messages-container" style="display: none;">
+            <div class="chat-messages-header">
+              <div style="display: flex; align-items: center; gap: 10px; flex: 1;">
+                <div id="chat-avatar" style="width: 40px; height: 40px; border-radius: 50%; background-color: #ddd; display: flex; align-items: center; justify-content: center; font-weight: bold; background-size: cover; background-position: center;">
+                </div>
+                <h3 id="chat-with-name" style="margin: 0;">
+                  <span class="chat-name-text"></span>
+                  <span class="chat-online-indicator" id="chat-online-indicator"></span>
+                </h3>
+              </div>
+              <div style="display: flex; gap: 10px;">
+                <button id="toggle-group-menu-btn" class="btn" style="display: none;" title="Menu nhóm">⋮</button>
+              </div>
+            </div>
+            <div id="messages-list" class="messages-list">
+              <!-- Messages will be loaded here -->
+            </div>
+            <div id="typing-indicator" class="typing-indicator" style="display: none;">
+              <span class="typing-text"></span>
+            </div>
+            <div class="chat-input-container">
+              <input type="text" id="message-input" placeholder="Nhập tin nhắn..." />
+              <button id="send-btn" class="btn btn-primary">Gửi</button>
+            </div>
+          </div>
+
+          <!-- Group Menu Panel -->
+          <div id="group-menu-panel" class="group-menu-panel" style="display: none;">
+            <div class="group-menu-header">
+              <h3>Thông tin nhóm</h3>
+              <button id="close-group-menu-btn" class="btn-close">×</button>
+            </div>
+            <div class="group-menu-content">
+              <!-- Group Info Section -->
+              <div class="menu-section">
+                <h4>Thông tin nhóm</h4>
+                <div id="group-info-display" class="group-info-display">
+                  <p><strong>Tên:</strong> <span id="menu-group-name">-</span></p>
+                  <p><strong>Mô tả:</strong> <span id="menu-group-desc">-</span></p>
+                  <p><strong>Thành viên:</strong> <span id="menu-group-member-count">0</span></p>
+                </div>
+              </div>
+
+              <!-- Member Actions (visible for everyone) -->
+              <div class="menu-section" id="member-actions-section">
+                <h4>Hành động</h4>
+                <button id="btn-add-member" class="menu-btn">➕ Thêm thành viên</button>
+                <button id="btn-delete-group" class="menu-btn danger">👋 Rời nhóm</button>
+              </div>
+
+              <!-- Admin Actions -->
+              <div class="menu-section" id="admin-actions-section" style="display: none;">
+                <h4>Quản lý nhóm</h4>
+                <button id="btn-edit-group-in-menu" class="menu-btn">✏️ Sửa nhóm</button>
+                <button id="btn-change-role" class="menu-btn">🔑 Thay đổi quyền</button>
+              </div>
+
+              <!-- Members List -->
+              <div class="menu-section">
+                <h4>Danh sách thành viên</h4>
+                <div id="group-members-list" class="members-list">
+                  <!-- Members will be loaded here -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="create-group-modal" class="modal" style="display: none;">
+      <div class="modal-overlay" id="create-group-modal-overlay"></div>
+      <div class="modal-content">
+        <button class="modal-close-btn">×</button>
+        <h2>Tạo nhóm mới</h2>
+        <form id="create-group-form">
+          <div class="form-group">
+            <label>Tên nhóm</label>
+            <input type="text" id="group-name-input" required placeholder="Nhập tên nhóm">
+          </div>
+          <div class="form-group">
+            <label>Mô tả</label>
+            <input type="text" id="group-desc-input" placeholder="Mô tả nhóm (tùy chọn)">
+          </div>
+          <div class="form-group">
+            <label>Tìm kiếm thành viên</label>
+            <input type="text" id="search-member-input" placeholder="Tìm kiếm theo tên hoặc username...">
+            <div id="search-results-list" class="search-results-list"></div>
+          </div>
+          <div class="form-group">
+            <label>Thành viên đã chọn</label>
+            <div id="selected-members-list" class="selected-members-list"></div>
+          </div>
+          <textarea id="group-members-input" style="display: none;" required></textarea>
+          <button type="submit" class="btn btn-primary">Tạo nhóm</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="edit-group-modal" class="modal" style="display: none;">
+      <div class="modal-overlay" id="edit-group-modal-overlay"></div>
+      <div class="modal-content">
+        <button class="modal-close-btn">×</button>
+        <h2>Sửa thông tin nhóm</h2>
+        <form id="edit-group-form">
+          <div class="form-group">
+            <label>Avatar nhóm</label>
+            <div class="avatar-upload-wrapper">
+              <div class="avatar-preview" id="edit-group-avatar-preview" style="width: 80px; height: 80px; border-radius: 50%; background: #ddd; display: flex; align-items: center; justify-content: center; font-size: 32px; cursor: pointer; overflow: hidden;">
+                A
+              </div>
+              <input type="file" id="edit-group-avatar-input" accept="image/*" style="display: none;">
+              <p style="font-size: 12px; color: #666; margin-top: 8px;">Click avatar để đổi ảnh</p>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Tên nhóm</label>
+            <input type="text" id="edit-group-name-input" required placeholder="Nhập tên nhóm">
+          </div>
+          <div class="form-group">
+            <label>Mô tả</label>
+            <input type="text" id="edit-group-desc-input" placeholder="Mô tả nhóm (tùy chọn)">
+          </div>
+          <button type="submit" class="btn btn-primary">Lưu thay đổi</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Add Member Modal -->
+    <div id="add-member-modal" class="modal" style="display: none;">
+      <div class="modal-overlay" id="add-member-modal-overlay"></div>
+      <div class="modal-content">
+        <button class="modal-close-btn">×</button>
+        <h2>Thêm thành viên</h2>
+        <form id="add-member-form">
+          <div class="form-group">
+            <label>Tìm kiếm thành viên</label>
+            <input type="text" id="add-member-search-input" placeholder="Tìm kiếm theo tên hoặc username...">
+            <div id="add-member-search-results" class="search-results-list"></div>
+          </div>
+          <div class="form-group">
+            <label>Thành viên được chọn</label>
+            <div id="add-member-selected-list" class="selected-members-list"></div>
+          </div>
+          <textarea id="add-member-ids-input" style="display: none;"></textarea>
+          <button type="submit" class="btn btn-primary">Thêm thành viên</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Change Role Modal -->
+    <div id="change-role-modal" class="modal" style="display: none;">
+      <div class="modal-overlay" id="change-role-modal-overlay"></div>
+      <div class="modal-content">
+        <button class="modal-close-btn">×</button>
+        <h2>Thay đổi quyền thành viên</h2>
+        <div id="change-role-list" class="change-role-list">
+          <!-- Members will be listed here with role selection -->
+        </div>
+      </div>
+    </div>
+
+    <div id="profile-modal" class="profile-modal" aria-hidden="true">
+      <div class="profile-modal-overlay" id="profile-modal-overlay"></div>
+      <div class="profile-modal-content" role="dialog" aria-modal="true">
+      <button class="modal-close-btn" id="profile-modal-close" aria-label="Đóng">×</button>
+      <div class="profile-avatar-wrapper">
+        <div class="profile-modal-avatar" id="profile-modal-avatar">?</div>
+        <button type="button" id="avatar-upload-btn" class="avatar-upload-btn" aria-label="Đổi ảnh đại diện">
+          <span class="avatar-upload-icon">📷</span>
+        </button>
+        <input type="file" id="avatar-file-input" accept="image/*" hidden>
+      </div>
+      <p id="avatar-upload-status" class="avatar-upload-status" aria-live="polite"></p>
+        <h2 id="profile-modal-name">Tên người dùng</h2>
+        <p id="profile-modal-username" class="profile-modal-username">@username</p>
+        <p id="profile-modal-email" class="profile-modal-email">email@example.com</p>
+        <div class="profile-modal-divider"></div>
+        <ul class="profile-modal-info">
+          <li><span>Họ tên:</span><strong id="profile-modal-fullname">-</strong></li>
+          <li><span>Tên đăng nhập:</span><strong id="profile-modal-username-detail">-</strong></li>
+          <li><span>Email:</span><strong id="profile-modal-email-detail">-</strong></li>
+        </ul>
+        <form id="profile-edit-form" class="profile-edit-form">
+          <div class="form-group">
+            <label for="profile-edit-fullname">Họ tên</label>
+            <input type="text" id="profile-edit-fullname" required placeholder="Nhập họ tên">
+          </div>
+          <div class="form-group">
+            <label for="profile-edit-username">Tên đăng nhập</label>
+            <input type="text" id="profile-edit-username" required placeholder="Nhập tên đăng nhập">
+          </div>
+          <div class="form-group">
+            <label for="profile-edit-email">Email</label>
+            <input type="email" id="profile-edit-email" required placeholder="Nhập email">
+          </div>
+          <div class="profile-edit-actions">
+            <button type="submit" id="profile-save-btn" class="btn btn-primary">Lưu thay đổi</button>
+          </div>
+          <p id="profile-update-message" class="profile-update-message" aria-live="polite"></p>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./src/pages/chat/index.js"></script>
+  <script type="module" src="./src/pages/chat/group.module.js"></script>
+</body>
+</html>
+
