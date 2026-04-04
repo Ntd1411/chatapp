@@ -15,11 +15,8 @@ EXTRA_CFLAGS := -I$(PWD)/../include
 all: chat_crypto.ko chat_crypto_test
 	@echo "[OK] All targets built successfully"
 
-chat_crypto.o: chat_crypto.c
-	@echo "Compiling crypto module for kernel $(KVERSION)..."
-	gcc -c -I$(KBUILD_DIR)/include chat_crypto.c -o chat_crypto.o
-
-chat_crypto.ko: chat_crypto.o
+# Build kernel module using kbuild (NOT direct gcc)
+chat_crypto.ko:
 	@echo "Building kernel module for kernel version: $(KVERSION)..."
 	make -C $(KBUILD_DIR) M=$(PWD) modules
 
@@ -42,7 +39,7 @@ uninstall:
 clean:
 	@echo "Cleaning artifacts..."
 	make -C $(KBUILD_DIR) M=$(PWD) clean
-	rm -f chat_crypto_test chat_crypto.o
+	rm -f chat_crypto_test
 	@echo "[OK] Clean complete"
 
 .PHONY: all install uninstall clean
