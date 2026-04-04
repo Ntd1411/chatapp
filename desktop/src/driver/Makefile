@@ -15,9 +15,9 @@ EXTRA_CFLAGS := -I$(PWD)/../include
 all: chat_crypto.ko chat_crypto_test
 	@echo "[OK] All targets built successfully"
 
-chat_crypto.o: chat_crypto_v6.c
+chat_crypto.o: chat_crypto.c
 	@echo "Compiling crypto module for kernel $(KVERSION)..."
-	gcc -c -I$(KBUILD_DIR)/include chat_crypto_v6.c -o chat_crypto.o
+	gcc -c -I$(KBUILD_DIR)/include chat_crypto.c -o chat_crypto.o
 
 chat_crypto.ko: chat_crypto.o
 	@echo "Building kernel module for kernel version: $(KVERSION)..."
