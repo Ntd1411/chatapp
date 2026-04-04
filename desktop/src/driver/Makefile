@@ -22,7 +22,7 @@ chat_crypto.ko:
 
 chat_crypto_test: chat_crypto_test.c
 	@echo "Building test application..."
-	gcc -o chat_crypto_test chat_crypto_test.c
+	gcc -I../include -o chat_crypto_test chat_crypto_test.c
 	@echo "[OK] Test app built"
 
 install: chat_crypto.ko
