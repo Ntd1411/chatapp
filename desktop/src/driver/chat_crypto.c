@@ -46,7 +46,6 @@ static int do_sha1(struct sha1_request *req) {
     }
 
     desc->tfm = tfm;
-    desc->flags = 0;
 
     ret = crypto_shash_init(desc);
     if (ret) goto out;
