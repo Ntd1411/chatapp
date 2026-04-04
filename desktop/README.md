@@ -1,3 +1,7 @@
+# Clone repository
+git clone https://github.com/Ntd1411/chatapp.git
+cd chatapp
+
 # Cài JDK 17+
 sudo apt install -y openjdk-17-jdk
 
@@ -8,11 +12,11 @@ sudo apt install -y maven
 java -version
 mvn --version
 
+# Cài gcc
+sudo apt-get install build-essential
+
 # Cài driver
-cd src/driver
-make clean
-make
-make install
+cd desktop/src/driver && make clean && make && make install
 
 # Build project
 cd desktop

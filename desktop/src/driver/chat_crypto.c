@@ -8,7 +8,7 @@
 #include <linux/scatterlist.h>
 #include <linux/string.h>
 
-#include "../include/crypto_module.h"
+#include "./include/crypto_module.h"
 
 // Device configuration
 #define DEVICE_NAME "chat_crypto"
