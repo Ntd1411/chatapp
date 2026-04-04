@@ -5,7 +5,7 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 
-#include "../include/crypto_module.h"
+#include "./include/crypto_module.h"
 
 int main(int argc, char *argv[]) {
     int i, fd, ret;
