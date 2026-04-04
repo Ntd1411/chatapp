@@ -150,7 +150,7 @@ static long crypto_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
             break;
         }
 
-        case CRYPTO_IOCTL_DES_CRYPT: {
+        case CRYPTO_IOCTL_DES_ENCRYPT: {
             struct des_request *req = kzalloc(sizeof(*req), GFP_KERNEL);
             if (!req) return -ENOMEM;
 
@@ -159,6 +159,27 @@ static long crypto_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
                 return -EFAULT;
             }
 
+            req->mode = 0;  // Force encrypt mode
+            ret = do_des(req);
+
+            if (ret == 0 && copy_to_user((void __user *)arg, req, sizeof(*req))) {
+                ret = -EFAULT;
+            }
+
+            kfree(req);
+            break;
+        }
+
+        case CRYPTO_IOCTL_DES_DECRYPT: {
+            struct des_request *req = kzalloc(sizeof(*req), GFP_KERNEL);
+            if (!req) return -ENOMEM;
+
+            if (copy_from_user(req, (void __user *)arg, sizeof(*req))) {
+                kfree(req);
+                return -EFAULT;
+            }
+
+            req->mode = 1;  // Force decrypt mode
             ret = do_des(req);
 
             if (ret == 0 && copy_to_user((void __user *)arg, req, sizeof(*req))) {
