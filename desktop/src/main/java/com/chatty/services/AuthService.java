@@ -54,51 +54,63 @@ public class AuthService {
 
     // logic đăng nhập
     public User login(String username, String password) throws IOException {
-        // Hash password sử dụng kernel crypto driver
-        String hashedPassword = cryptoService.sha1Hash(password);
-        
-        JsonObject loginData = new JsonObject();
-        loginData.addProperty("username", username);
-        loginData.addProperty("password", hashedPassword);
+        try {
+            // Hash password sử dụng kernel crypto driver
+            String hashedPassword = cryptoService.sha1Hash(password);
+            
+            JsonObject loginData = new JsonObject();
+            loginData.addProperty("username", username);
+            loginData.addProperty("password", hashedPassword);
 
-        JsonObject loginResponse = apiService.post("/auth/login", loginData, JsonObject.class);
+            JsonObject loginResponse = apiService.post("/auth/login", loginData, JsonObject.class);
 
-        if(loginResponse == null || !loginResponse.has("token")){
-            throw new IOException("Đăng nhập thất bại: không nhận được token");
+            if(loginResponse == null || !loginResponse.has("token")){
+                throw new IOException("Không nhận được token từ server");
+            }
+
+            String token = loginResponse.get("token").getAsString();
+            ApiService.authToken = token;
+
+            JsonObject meResponse = apiService.get("/auth/me", JsonObject.class, null);
+
+            if(meResponse == null || !meResponse.has("user")){
+                throw new IOException("Không nhận được thông tin user");
+            }
+
+            Gson gson = new Gson();
+            User user = gson.fromJson(meResponse.get("user"), User.class);
+
+            user.setToken(token);
+            this.currentUser = user;
+            saveSessionCookie();
+
+            return user;
+        } catch (ExceptionInInitializerError e) {
+            throw new IOException("Lỗi crypto: Kernel driver không khả dụng - " + e.getMessage());
+        } catch (NullPointerException e) {
+            throw new IOException("Lỗi crypto: CryptoService chưa được khởi tạo");
         }
-
-        String token = loginResponse.get("token").getAsString();
-        ApiService.authToken = token;
-
-        JsonObject meResponse = apiService.get("/auth/me", JsonObject.class, null);
-
-        if(meResponse == null || !meResponse.has("user")){
-            throw new IOException("Đăng nhập thất bại: không nhận được thông tin user");
-        }
-
-        Gson gson = new Gson();
-        User user = gson.fromJson(meResponse.get("user"), User.class);
-
-        user.setToken(token);
-        this.currentUser = user;
-        saveSessionCookie();
-
-        return user;
     }
 
     // logic đăng ký
     public User signup(String username, String fullName, String email, String password) throws IOException {
-        // Hash password sử dụng kernel crypto driver
-        String hashedPassword = cryptoService.sha1Hash(password);
-        
-        JsonObject signupData = new JsonObject();
-        signupData.addProperty("username", username);
-        signupData.addProperty("fullName", fullName);
-        signupData.addProperty("email", email);
-        signupData.addProperty("password", hashedPassword);
+        try {
+            // Hash password sử dụng kernel crypto driver
+            String hashedPassword = cryptoService.sha1Hash(password);
+            
+            JsonObject signupData = new JsonObject();
+            signupData.addProperty("username", username);
+            signupData.addProperty("fullName", fullName);
+            signupData.addProperty("email", email);
+            signupData.addProperty("password", hashedPassword);
 
-        User user = apiService.post("/auth/signup", signupData, User.class);
-        return user;
+            User user = apiService.post("/auth/signup", signupData, User.class);
+            return user;
+        } catch (ExceptionInInitializerError e) {
+            throw new IOException("Lỗi crypto: Kernel driver không khả dụng - " + e.getMessage());
+        } catch (NullPointerException e) {
+            throw new IOException("Lỗi crypto: CryptoService chưa được khởi tạo");
+        }
     }
 
     // logic đăng xuất
