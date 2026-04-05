@@ -14,8 +14,7 @@ public class ChattyApp extends Application {
         // Set tên app và icon
         primaryStage.setTitle("Kma Chatty");
         try {
-            Image icon = new Image(getClass().getResource("/logo.png").toExternalForm());
-            primaryStage.getIcons().add(icon);
+            primaryStage.getIcons().add(new Image(getClass().getResourceAsStream("/logo.png")));
         } catch (Exception e) {
             System.err.println("Icon không tìm thấy: " + e.getMessage());
         }
