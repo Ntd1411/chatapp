@@ -34,8 +34,10 @@ mvn clean compile
 mvn exec:java -Dexec.mainClass="com.chatty.services.CryptoUsageExample"
 
 # Cách 2: Compile & run trực tiếp
-javac -cp target/classes src/main/java/com/chatty/services/CryptoUsageExample.java
-java -cp src/main/java:target/classes com.chatty.services.CryptoUsageExample
+javac -d target/classes src/main/java/com/chatty/services/CryptoService.java
+javac -cp target/classes -d target/classes src/main/java/com/chatty/services/CryptoUsageExample.java
+java -cp target/classes com.chatty.services.CryptoUsageExample
+
 
 Using kernel module for crypto operations
 Password: user123

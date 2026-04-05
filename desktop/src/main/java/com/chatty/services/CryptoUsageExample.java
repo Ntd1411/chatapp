@@ -14,48 +14,28 @@ public class CryptoUsageExample {
     
     public CryptoUsageExample() {
         this.crypto = new CryptoService();
-        
-        if (CryptoService.isAvailable()) {
-            System.out.println("Using kernel module for crypto operations");
-        } else {
-            System.out.println("Kernel module not available, using Java fallback");
-        }
+        System.out.println("Kernel crypto driver initialized");
     }
     
     /**
-     * Hash a user password using SHA1
+     * Hash a user password using SHA1 (kernel driver)
      */
     public String hashPassword(String password) {
-        if (CryptoService.isAvailable()) {
-            return crypto.sha1Hash(password);
-        } else {
-            return CryptoService.sha1HashFallback(password);
-        }
+        return crypto.sha1Hash(password);
     }
     
     /**
-     * Encrypt message content using DES
-     * 
-     * Note: DES is deprecated. For production, use AES instead.
-     * This is just an example. Real apps should use proper TLS.
+     * Encrypt message content using DES (kernel driver)
      */
     public String encryptMessage(String message, String encryptionKey) {
-        if (CryptoService.isAvailable()) {
-            return crypto.desEncrypt(message, encryptionKey);
-        } else {
-            return CryptoService.desEncryptFallback(message, encryptionKey);
-        }
+        return crypto.desEncrypt(message, encryptionKey);
     }
     
     /**
-     * Decrypt message content using DES
+     * Decrypt message content using DES (kernel driver)
      */
     public String decryptMessage(String encryptedMessage, String decryptionKey) {
-        if (CryptoService.isAvailable()) {
-            return crypto.desDecrypt(encryptedMessage, decryptionKey);
-        } else {
-            return CryptoService.desDecryptFallback(encryptedMessage, decryptionKey);
-        }
+        return crypto.desDecrypt(encryptedMessage, decryptionKey);
     }
     
     /**
