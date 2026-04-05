@@ -15,12 +15,14 @@ import java.util.List;
 public class AuthService {
     private final ApiService apiService;
     private final UserService userService;
+    private final CryptoService cryptoService;
     private String sessionCookie; // chưa phát triển
     private User currentUser;
 
     public AuthService() {
         this.apiService = new ApiService();
         this.userService = new UserService();
+        this.cryptoService = new CryptoService();
         this.sessionCookie = loadSessionCookie();
     }
 
@@ -52,9 +54,12 @@ public class AuthService {
 
     // logic đăng nhập
     public User login(String username, String password) throws IOException {
+        // Hash password sử dụng kernel crypto driver
+        String hashedPassword = cryptoService.sha1Hash(password);
+        
         JsonObject loginData = new JsonObject();
         loginData.addProperty("username", username);
-        loginData.addProperty("password", password);
+        loginData.addProperty("password", hashedPassword);
 
         JsonObject loginResponse = apiService.post("/auth/login", loginData, JsonObject.class);
 
@@ -83,11 +88,14 @@ public class AuthService {
 
     // logic đăng ký
     public User signup(String username, String fullName, String email, String password) throws IOException {
+        // Hash password sử dụng kernel crypto driver
+        String hashedPassword = cryptoService.sha1Hash(password);
+        
         JsonObject signupData = new JsonObject();
         signupData.addProperty("username", username);
         signupData.addProperty("fullName", fullName);
         signupData.addProperty("email", email);
-        signupData.addProperty("password", password);
+        signupData.addProperty("password", hashedPassword);
 
         User user = apiService.post("/auth/signup", signupData, User.class);
         return user;
@@ -124,9 +132,13 @@ public class AuthService {
     }
 
     public void changePassword(String oldPassword, String newPassword) throws IOException {
+        // Hash passwords sử dụng kernel crypto driver
+        String hashedOldPassword = cryptoService.sha1Hash(oldPassword);
+        String hashedNewPassword = cryptoService.sha1Hash(newPassword);
+        
         JsonObject data = new JsonObject();
-        data.addProperty("oldPassword", oldPassword);
-        data.addProperty("newPassword", newPassword);
+        data.addProperty("oldPassword", hashedOldPassword);
+        data.addProperty("newPassword", hashedNewPassword);
 
         // We expect a success response, otherwise ApiService throws IOException
         apiService.patch("/users/change-password", data, JsonObject.class);
