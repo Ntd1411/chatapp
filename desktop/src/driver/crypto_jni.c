@@ -80,7 +80,7 @@ JNIEXPORT jstring JNICALL Java_com_chatty_services_CryptoService_desEncrypt(
     const char *plain_str = (*env)->GetStringUTFChars(env, plaintext, 0);
     const char *key_str = (*env)->GetStringUTFChars(env, key, 0);
     struct des_request req;
-    char hex_output[DES_MAX_OUTPUT * 2 + 1];
+    char hex_output[MAX_CRYPTO_DATA * 2 + 1];
     jstring result = NULL;
     
     int fd = open(DEVICE_FILE, O_RDWR);
@@ -93,7 +93,7 @@ JNIEXPORT jstring JNICALL Java_com_chatty_services_CryptoService_desEncrypt(
     
     // Prepare request
     memset(&req, 0, sizeof(req));
-    strncpy((char *)req.input, plain_str, DES_MAX_INPUT - 1);
+    strncpy((char *)req.input, plain_str, MAX_CRYPTO_DATA - 1);
     req.input_len = strlen((char *)req.input);
     req.mode = 0; // encrypt
     
@@ -101,7 +101,7 @@ JNIEXPORT jstring JNICALL Java_com_chatty_services_CryptoService_desEncrypt(
     strncpy((char *)req.key, key_str, DES_KEY_SIZE);
     
     // Call kernel module
-    if (ioctl(fd, CRYPTO_IOCTL_DES_CRYPT, &req) < 0) {
+    if (ioctl(fd, CRYPTO_IOCTL_DES_ENCRYPT, &req) < 0) {
         perror("DES encrypt ioctl failed");
         close(fd);
         (*env)->ReleaseStringUTFChars(env, plaintext, plain_str);
@@ -128,7 +128,7 @@ JNIEXPORT jstring JNICALL Java_com_chatty_services_CryptoService_desDecrypt(
     const char *cipher_str = (*env)->GetStringUTFChars(env, ciphertext, 0);
     const char *key_str = (*env)->GetStringUTFChars(env, key, 0);
     struct des_request req;
-    char output_str[DES_MAX_OUTPUT + 1];
+    char output_str[MAX_CRYPTO_DATA + 1];
     jstring result = NULL;
     
     int fd = open(DEVICE_FILE, O_RDWR);
@@ -140,7 +140,7 @@ JNIEXPORT jstring JNICALL Java_com_chatty_services_CryptoService_desDecrypt(
     }
     
     // Convert hex to bytes
-    int input_len = hex_to_bytes(cipher_str, req.input, DES_MAX_INPUT);
+    int input_len = hex_to_bytes(cipher_str, req.input, MAX_CRYPTO_DATA);
     if (input_len < 0) {
         fprintf(stderr, "Invalid hex string\n");
         close(fd);
@@ -158,7 +158,7 @@ JNIEXPORT jstring JNICALL Java_com_chatty_services_CryptoService_desDecrypt(
     strncpy((char *)req.key, key_str, DES_KEY_SIZE);
     
     // Call kernel module
-    if (ioctl(fd, CRYPTO_IOCTL_DES_CRYPT, &req) < 0) {
+    if (ioctl(fd, CRYPTO_IOCTL_DES_DECRYPT, &req) < 0) {
         perror("DES decrypt ioctl failed");
         close(fd);
         (*env)->ReleaseStringUTFChars(env, ciphertext, cipher_str);
