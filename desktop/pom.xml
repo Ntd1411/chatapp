@@ -14,8 +14,6 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <javafx.version>17.0.8</javafx.version>
-        <os.detected.name>linux</os.detected.name>
-        <os.detected.arch>x86_64</os.detected.arch>
     </properties>
 
     <dependencies>
@@ -76,41 +74,6 @@
                     <source>17</source>
                     <target>17</target>
                 </configuration>
-            </plugin>
-            
-            <!-- Native Build Plugin for JNI -->
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>native-maven-plugin</artifactId>
-                <version>1.0-alpha-11</version>
-                <extensions>true</extensions>
-                <configuration>
-                    <compilerProvider>generic-provider</compilerProvider>
-                    <compilerExecutable>gcc</compilerExecutable>
-                    <sources>
-                        <source>
-                            <directory>src/driver</directory>
-                            <includes>
-                                <include>crypto_jni.c</include>
-                            </includes>
-                        </source>
-                    </sources>
-                    <libname>crypto_jni</libname>
-                    <staticLibs/>
-                    <linkerStartOptions>
-                        <linkerStartOption>-shared</linkerStartOption>
-                    </linkerStartOptions>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>native-build</id>
-                        <phase>compile</phase>
-                        <goals>
-                            <goal>initialize</goal>
-                            <goal>compile</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
             
             <plugin>

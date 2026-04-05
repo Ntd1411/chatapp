@@ -12,7 +12,7 @@ obj-m := chat_crypto.o
 EXTRA_CFLAGS := -I$(PWD)/../include
 
 # Targets
-all: chat_crypto.ko chat_crypto_test
+all: chat_crypto.ko chat_crypto_test jni
 	@echo "[OK] All targets built successfully"
 
 # Build kernel module using kbuild (NOT direct gcc)
@@ -24,6 +24,20 @@ chat_crypto_test: chat_crypto_test.c
 	@echo "Building test application..."
 	gcc -I../include -o chat_crypto_test chat_crypto_test.c
 	@echo "[OK] Test app built"
+
+jni:
+	@echo "Compiling JNI library..."
+	gcc -I/usr/lib/jvm/java-17-openjdk-amd64/include \
+		-I/usr/lib/jvm/java-17-openjdk-amd64/include/linux \
+		-I./include \
+		-fPIC -shared \
+		-o libcrypto_jni.so crypto_jni.c
+	@echo "[OK] JNI library compiled: libcrypto_jni.so"
+	@ls -lh libcrypto_jni.so
+	@echo "Installing JNI library to system path..."
+	sudo cp libcrypto_jni.so /usr/lib/x86_64-linux-gnu/
+	sudo ldconfig
+	@echo "[OK] JNI library installed"
 
 install: chat_crypto.ko
 	@echo "Loading kernel module..."

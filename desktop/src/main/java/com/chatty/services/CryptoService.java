@@ -17,9 +17,16 @@ public class CryptoService {
             isLoaded = true;
             System.out.println("CryptoService: JNI library loaded successfully");
         } catch (UnsatisfiedLinkError e) {
-            System.err.println("CryptoService: Cannot load JNI library");
+            System.err.println("CryptoService: Cannot load JNI library!");
             System.err.println("Error: " + e.getMessage());
+            System.err.println("REQUIRED: Must compile and install kernel driver first!");
+            System.err.println("Steps:");
+            System.err.println("  1. cd ~/chatapp/desktop/src/driver");
+            System.err.println("  2. make clean && make && sudo make install");
+            System.err.println("  3. Compile JNI: gcc ... -o libcrypto_jni.so crypto_jni.c");
+            System.err.println("  4. Copy: cp libcrypto_jni.so /usr/lib/x86_64-linux-gnu/");
             isLoaded = false;
+            throw new ExceptionInInitializerError("Kernel crypto driver required but not available!");
         }
     }
     
@@ -55,74 +62,10 @@ public class CryptoService {
         return isLoaded;
     }
     
-    // Hỗ trợ fallback nếu kernel module không có
-    
-    /**
-     * SHA1 fallback (dùng thư viện Java sẵn có)
+    /** 
+     * The CryptoService requires the Linux kernel module (chat_crypto.ko)
+     * and native JNI library (libcrypto_jni.so) to function.
+     * 
+     * All crypto operations MUST use the kernel driver through native methods.
      */
-    public static String sha1HashFallback(String input) {
-        try {
-            java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-1");
-            byte[] digest = md.digest(input.getBytes());
-            StringBuilder sb = new StringBuilder();
-            for (byte b : digest) {
-                sb.append(String.format("%02x", b));
-            }
-            return sb.toString();
-        } catch (java.security.NoSuchAlgorithmException e) {
-            e.printStackTrace();
-            return null;
-        }
-    }
-    
-    /**
-     * DES Encrypt fallback (dùng javax.crypto)
-     */
-    public static String desEncryptFallback(String plaintext, String key) {
-        try {
-            byte[] keyBytes = new byte[8];
-            byte[] tempKey = key.getBytes();
-            System.arraycopy(tempKey, 0, keyBytes, 0, Math.min(8, tempKey.length));
-            
-            javax.crypto.SecretKey secretKey = new javax.crypto.spec.SecretKeySpec(keyBytes, 0, 8, "DES");
-            javax.crypto.Cipher cipher = javax.crypto.Cipher.getInstance("DES/ECB/PKCS5Padding");
-            cipher.init(javax.crypto.Cipher.ENCRYPT_MODE, secretKey);
-            
-            byte[] encrypted = cipher.doFinal(plaintext.getBytes());
-            StringBuilder sb = new StringBuilder();
-            for (byte b : encrypted) {
-                sb.append(String.format("%02x", b));
-            }
-            return sb.toString();
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
-    }
-    
-    /**
-     * DES Decrypt fallback
-     */
-    public static String desDecryptFallback(String ciphertext, String key) {
-        try {
-            byte[] keyBytes = new byte[8];
-            byte[] tempKey = key.getBytes();
-            System.arraycopy(tempKey, 0, keyBytes, 0, Math.min(8, tempKey.length));
-            
-            javax.crypto.SecretKey secretKey = new javax.crypto.spec.SecretKeySpec(keyBytes, 0, 8, "DES");
-            javax.crypto.Cipher cipher = javax.crypto.Cipher.getInstance("DES/ECB/PKCS5Padding");
-            cipher.init(javax.crypto.Cipher.DECRYPT_MODE, secretKey);
-            
-            byte[] encryptedBytes = new byte[ciphertext.length() / 2];
-            for (int i = 0; i < ciphertext.length(); i += 2) {
-                encryptedBytes[i / 2] = (byte) Integer.parseInt(ciphertext.substring(i, i + 2), 16);
-            }
-            
-            byte[] decrypted = cipher.doFinal(encryptedBytes);
-            return new String(decrypted);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
-    }
 }
