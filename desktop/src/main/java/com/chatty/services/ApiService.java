@@ -57,7 +57,8 @@ public class ApiService {
         try (Response response = client.newCall(requestBuilder.build()).execute()) {
             if (!response.isSuccessful()) {
                 String errorBody = response.body() != null ? response.body().string() : "";
-                throw new IOException("Unexpected code " + response + ": " + errorBody);
+                String errorMessage = extractErrorMessage(errorBody);
+                throw new IOException(errorMessage);
             }
             String json = response.body().string();
             if (responseClass == String.class) {
@@ -86,7 +87,8 @@ public class ApiService {
         try (Response response = client.newCall(request).execute()) {
             if (!response.isSuccessful()) {
                 String errorBody = response.body().string();
-                throw new IOException("Request failed: " + errorBody);
+                String errorMessage = extractErrorMessage(errorBody);
+                throw new IOException(errorMessage);
             }
             String responseJson = response.body().string();
             return gson.fromJson(responseJson, responseClass);
@@ -112,7 +114,8 @@ public class ApiService {
         try (Response response = client.newCall(request).execute()) {
             if (!response.isSuccessful()) {
                 String errorBody = response.body() != null ? response.body().string() : "";
-                throw new IOException("PUT request failed: " + response + " - " + errorBody);
+                String errorMessage = extractErrorMessage(errorBody);
+                throw new IOException(errorMessage);
             }
 
             String responseJson = response.body() != null ? response.body().string() : "";
@@ -142,7 +145,8 @@ public class ApiService {
         try (Response response = client.newCall(request).execute()) {
             if (!response.isSuccessful()) {
                 String errorBody = response.body() != null ? response.body().string() : "";
-                throw new IOException("PATCH request failed: " + response + " - " + errorBody);
+                String errorMessage = extractErrorMessage(errorBody);
+                throw new IOException(errorMessage);
             }
 
             if (responseClass == Void.class) return null;
@@ -201,7 +205,8 @@ public class ApiService {
         try (Response response = client.newCall(request).execute()) {
             if (!response.isSuccessful()) {
                 String errorBody = response.body() != null ? response.body().string() : "";
-                throw new IOException("DELETE request failed: " + response + " - " + errorBody);
+                String errorMessage = extractErrorMessage(errorBody);
+                throw new IOException(errorMessage);
             }
 
             String responseJson = response.body() != null ? response.body().string() : "";
@@ -229,11 +234,30 @@ public class ApiService {
         try (Response response = client.newCall(request).execute()) {
             if (!response.isSuccessful()) {
                 String errorBody = response.body().string();
-                throw new IOException("Request failed: " + errorBody);
+                String errorMessage = extractErrorMessage(errorBody);
+                throw new IOException(errorMessage);
             }
             String responseJson = response.body().string();
             return gson.fromJson(responseJson, responseClass);
         }
+    }
+
+    // Helper method to extract error message from JSON response
+    private String extractErrorMessage(String errorBody) {
+        if (errorBody == null || errorBody.isEmpty()) {
+            return "Unknown error";
+        }
+        
+        try {
+            com.google.gson.JsonObject errorJson = gson.fromJson(errorBody, com.google.gson.JsonObject.class);
+            if (errorJson != null && errorJson.has("message")) {
+                return errorJson.get("message").getAsString();
+            }
+        } catch (Exception e) {
+            // If JSON parsing fails, return the original error body
+        }
+        
+        return errorBody;
     }
 
     public OkHttpClient getClient() {
