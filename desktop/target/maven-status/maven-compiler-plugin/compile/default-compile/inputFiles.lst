@@ -4,6 +4,7 @@ D:\Code\driver\chatapp\desktop\src\main\java\com\chatty\ChattyApp.java
 D:\Code\driver\chatapp\desktop\src\main\java\com\chatty\controllers\SignUpController.java
 D:\Code\driver\chatapp\desktop\src\main\java\com\chatty\models\GroupMessage.java
 D:\Code\driver\chatapp\desktop\src\main\java\com\chatty\models\Message.java
+D:\Code\driver\chatapp\desktop\src\main\java\com\chatty\services\CryptoService.java
 D:\Code\driver\chatapp\desktop\src\main\java\com\chatty\controllers\LoginController.java
 D:\Code\driver\chatapp\desktop\src\main\java\com\chatty\services\ChatService.java
 D:\Code\driver\chatapp\desktop\src\main\java\com\chatty\services\AuthService.java
@@ -11,6 +12,7 @@ D:\Code\driver\chatapp\desktop\src\main\java\com\chatty\services\GroupService.ja
 D:\Code\driver\chatapp\desktop\src\main\java\com\chatty\services\ThemeService.java
 D:\Code\driver\chatapp\desktop\src\main\java\com\chatty\models\Group.java
 D:\Code\driver\chatapp\desktop\src\main\java\com\chatty\Launcher.java
+D:\Code\driver\chatapp\desktop\src\main\java\com\chatty\services\CryptoUsageExample.java
 D:\Code\driver\chatapp\desktop\src\main\java\com\chatty\services\MessageDeserializer.java
 D:\Code\driver\chatapp\desktop\src\main\java\com\chatty\services\UserService.java
 D:\Code\driver\chatapp\desktop\src\main\java\com\chatty\AppConfig.java
