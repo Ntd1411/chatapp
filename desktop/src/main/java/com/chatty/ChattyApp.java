@@ -27,6 +27,9 @@ public class ChattyApp extends Application {
             // chuyển hướng ra đăng nhập
             new LoginController().show(primaryStage);
         }
+        
+        // Maximize window (chiếm hết màn hình trừ taskbar)
+        primaryStage.setMaximized(true);
     }
 
     public static void main(String[] args) {
