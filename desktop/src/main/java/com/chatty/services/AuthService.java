@@ -191,6 +191,19 @@ public class AuthService {
     public DHService getDHService() {
         return dhService;
     }
+    
+    // NEW: Re-initialize DHService after login (call this from HomeController.show())
+    public void reinitializeDHService() {
+        if (currentUser != null) {
+            try {
+                System.out.println("[AuthService] Re-initializing DHService for logged-in user...");
+                initializeDHService(currentUser);
+                System.out.println("[AuthService] DHService re-initialized successfully");
+            } catch (IOException e) {
+                System.err.println("[AuthService] Failed to re-initialize DHService: " + e.getMessage());
+            }
+        }
+    }
 
     public void changePassword(String oldPassword, String newPassword) throws IOException {
         // Hash passwords sử dụng kernel crypto driver
