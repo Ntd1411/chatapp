@@ -151,3 +151,55 @@ module.exports.changePassword = async (req, res) => {
     return res.status(500).json({ message: "Lỗi server khi đổi mật khẩu"});
   }
 }
+
+// ===== DIFFIE-HELLMAN KEY MANAGEMENT =====
+
+module.exports.uploadDHPublicKey = async (req, res) => {
+  try {
+    const { dh_public_key } = req.body;
+    
+    if (!dh_public_key) {
+      return res.status(400).json({ message: "DH public key required" });
+    }
+    
+    // Validate format (hex string)
+    if (!/^[0-9a-fA-F]+$/.test(dh_public_key)) {
+      return res.status(400).json({ message: "Invalid DH key format (must be hex)" });
+    }
+    
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { dh_public_key },
+      { new: true }
+    ).select('_id username dh_public_key');
+    
+    return res.status(200).json({ 
+      message: "DH public key saved successfully",
+      user
+    });
+  } catch (error) {
+    console.log("Error uploading DH key:", error);
+    return res.status(500).json({ message: "Error saving DH key" });
+  }
+};
+
+module.exports.getDHPublicKey = async (req, res) => {
+  try {
+    const { user_id } = req.params;
+    
+    const user = await User.findById(user_id).select('_id username dh_public_key');
+    
+    if (!user || !user.dh_public_key) {
+      return res.status(404).json({ message: "User DH public key not found" });
+    }
+    
+    return res.status(200).json({
+      user_id: user._id,
+      username: user.username,
+      dh_public_key: user.dh_public_key
+    });
+  } catch (error) {
+    console.log("Error fetching DH key:", error);
+    return res.status(500).json({ message: "Error fetching DH key" });
+  }
+};

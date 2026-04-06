@@ -16,6 +16,7 @@ public class AuthService {
     private final ApiService apiService;
     private final UserService userService;
     private final CryptoService cryptoService;
+    private DHService dhService;  // NEW: Diffie-Hellman service
     private String sessionCookie; // chưa phát triển
     private User currentUser;
 
@@ -23,6 +24,7 @@ public class AuthService {
         this.apiService = new ApiService();
         this.userService = new UserService();
         this.cryptoService = new CryptoService();
+        this.dhService = new DHService(apiService, cryptoService);  // NEW: Initialize DH service
         this.sessionCookie = loadSessionCookie();
     }
 
@@ -40,6 +42,9 @@ public class AuthService {
                 user.setToken(ApiService.authToken);
 
                 this.currentUser = user;
+                
+                // NEW: Initialize DH on auto login
+                initializeDHService(user);
 
                 return user;
             }
@@ -82,6 +87,10 @@ public class AuthService {
 
             user.setToken(token);
             this.currentUser = user;
+            
+            // NEW: Initialize DH on login
+            initializeDHService(user);
+            
             saveSessionCookie();
 
             return user;
@@ -105,6 +114,15 @@ public class AuthService {
             signupData.addProperty("password", hashedPassword);
 
             User user = apiService.post("/auth/signup", signupData, User.class);
+            
+            // NEW: Initialize DH after signup
+            // Note: After signup, you'll likely call login() to get the token
+            // DHService initialization happens in login(), so we don't do it here
+            // But you could initialize it here if you want to:
+            // dhService = new DHService(apiService, cryptoService);
+            // dhService.generateSecretExponent();
+            // dhService.uploadPublicExponent(user.get_id(), user.getUsername());
+            
             return user;
         } catch (ExceptionInInitializerError e) {
             throw new IOException("Lỗi crypto: Kernel driver không khả dụng - " + e.getMessage());
@@ -123,7 +141,33 @@ public class AuthService {
         }
         this.currentUser = null;
         this.sessionCookie = null;
+        if (this.dhService != null) {
+            this.dhService.clearCache();  // Clear DES key cache (in-memory only)
+            // NOTE: Do NOT delete stored secret exponent on logout!
+            // User should be able to read old messages on next login
+            // this.dhService.deleteStoredSecretExponent();
+        }
         clearSessionCookie();
+    }
+
+    // NEW: Helper method to initialize DH service on login/auto-login
+    private void initializeDHService(User user) throws IOException {
+        // NEW: Set user ID first (for per-user secret exponent file)
+        dhService.setUserId(user.get_id());
+        
+        // Try to load existing secret exponent from local storage
+        boolean loaded = dhService.loadSecretExponentFromStorage();
+        
+        if (!loaded) {
+            // First time login: generate new secret exponent
+            System.out.println("First time login: generating new secret exponent for user: " + user.getUsername());
+            dhService.generateSecretExponent();
+        } else {
+            System.out.println("Existing secret exponent loaded from storage for user: " + user.getUsername());
+        }
+        
+        // Always re-upload to ensure server has the correct g^a for this user
+        dhService.uploadPublicExponent(user.get_id(), user.getUsername());
     }
 
     public void setCurrentUser(User currentUser) {
@@ -141,6 +185,11 @@ public class AuthService {
 
     public String getToken() {
         return ApiService.authToken;
+    }
+    
+    // NEW: Getter for DHService (used by ChatService)
+    public DHService getDHService() {
+        return dhService;
     }
 
     public void changePassword(String oldPassword, String newPassword) throws IOException {

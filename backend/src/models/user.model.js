@@ -24,6 +24,11 @@ const userSchema = new mongoose.Schema(
     avatar: {
       type: String,
       required: false,
+    },
+    dh_public_key: {
+      type: String,
+      required: false,
+      default: null
     }
   },
   { timestamps: true }

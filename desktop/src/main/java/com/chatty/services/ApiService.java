@@ -242,6 +242,31 @@ public class ApiService {
         }
     }
 
+    // ===== DIFFIE-HELLMAN KEY ENDPOINTS =====
+    
+    /**
+     * Upload user's DH public exponent (g^a) to server.
+     * Called after generating secret exponent during signup/login.
+     */
+    public void uploadDHPublicKey(String userId, String dhPublicKeyHex) throws IOException {
+        java.util.Map<String, String> body = new java.util.HashMap<>();
+        body.put("dh_public_key", dhPublicKeyHex);
+        
+        post("/users/dh-key", body, String.class);
+    }
+
+    /**
+     * Fetch another user's DH public exponent (g^a) from server by user_id.
+     * Used before encrypting/decrypting messages.
+     */
+    public String getDHPublicKey(String userId) throws IOException {
+        com.google.gson.JsonObject response = get("/users/dh-key/" + userId, com.google.gson.JsonObject.class);
+        if (response != null && response.has("dh_public_key")) {
+            return response.get("dh_public_key").getAsString();
+        }
+        throw new IOException("DH public key not found for user: " + userId);
+    }
+
     // Helper method to extract error message from JSON response
     private String extractErrorMessage(String errorBody) {
         if (errorBody == null || errorBody.isEmpty()) {

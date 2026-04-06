@@ -18,16 +18,25 @@ import java.util.List;
 public class ChatService {
     private final ApiService apiService;
     private final SocketService socketService;
+    private final CryptoService cryptoService;  // NEW: For encryption/decryption
     private final Gson gson;
+    private DHService dhService;  // NEW: Diffie-Hellman service (set after init)
 
     public ChatService(SocketService socketService) {
         this.apiService = new ApiService();
         this.socketService = socketService;
+        this.cryptoService = new CryptoService();  // NEW
+        this.dhService = null;  // Will be set via setDHService()
 
         // dùng GsonBuilder để đăng ký deserializer
         this.gson = new GsonBuilder()
                 .registerTypeAdapter(Message.class, new MessageDeserializer())
                 .create();
+    }
+    
+    // NEW: Setter for DHService (called from AuthService after login)
+    public void setDHService(DHService dhService) {
+        this.dhService = dhService;
     }
 
     // lấy danh sách tất cả người dùng
@@ -79,7 +88,27 @@ public class ChatService {
                 JsonArray messageArray = response.getAsJsonArray("messages");
 
                 Type listType = new TypeToken<List<Message>>(){}.getType();
-                return gson.fromJson(messageArray, listType);
+                List<Message> messages = gson.fromJson(messageArray, listType);
+                
+                // NEW: Decrypt messages if DH service is available
+                if (dhService != null) {
+                    for (Message msg : messages) {
+                        try {
+                            String senderId = msg.getSenderId() instanceof User 
+                                ? ((User) msg.getSenderId()).get_id() 
+                                : (String) msg.getSenderId();
+                            
+                            String desKey = dhService.prepareMessageDecryption(senderId);
+                            String decryptedContent = cryptoService.desDecrypt(msg.getContent(), desKey);
+                            msg.setContent(decryptedContent);
+                        } catch (Exception e) {
+                            System.err.println("Failed to decrypt message: " + e.getMessage());
+                            // Keep encrypted content if decryption fails
+                        }
+                    }
+                }
+                
+                return messages;
             }
 
             return new ArrayList<>();
@@ -95,26 +124,39 @@ public class ChatService {
             return null;
         }
 
-        // tạo tin nhắn mới
-        Message localMsg = new Message();
-        localMsg.set_id(String.valueOf(System.currentTimeMillis()));
+        try {
+            // NEW: Prepare message encryption using DH if available
+            String encryptedContent = content;
+            if (dhService != null) {
+                String desKey = dhService.prepareMessageEncryption(receiverId);
+                encryptedContent = cryptoService.desEncrypt(content, desKey);
+            }
 
-        // tạo một đối tượng User cho người gửi
-        User senderUser = new User();
-        senderUser.set_id(senderId);
+            // tạo tin nhắn mới
+            Message localMsg = new Message();
+            localMsg.set_id(String.valueOf(System.currentTimeMillis()));
 
-        // gán cả đối tượng User vào tin nhắn
-        localMsg.setSenderId(senderUser.get_id());
+            // tạo một đối tượng User cho người gửi
+            User senderUser = new User();
+            senderUser.set_id(senderId);
 
-        // gán các thông tin còn lại
-        localMsg.setReceiverId(receiverId);
-        localMsg.setContent(content);
-        localMsg.setCreatedAt(Instant.now().toString());
+            // gán cả đối tượng User vào tin nhắn
+            localMsg.setSenderId(senderUser.get_id());
 
-        // gửi qua socket
-        socketService.sendMessage(receiverId, content);
+            // gán các thông tin còn lại
+            localMsg.setReceiverId(receiverId);
+            localMsg.setContent(encryptedContent);  // Send encrypted content
+            localMsg.setCreatedAt(Instant.now().toString());
 
-        return localMsg;
+            // gửi qua socket
+            socketService.sendMessage(receiverId, encryptedContent);
+
+            return localMsg;
+        } catch (Exception e) {
+            System.err.println("Failed to send message: " + e.getMessage());
+            e.printStackTrace();
+            return null;
+        }
     }
 }
 

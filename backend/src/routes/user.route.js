@@ -12,5 +12,9 @@ router.patch("/upload-avatar", authMiddleware, uploadMulter.single("avatar"), up
 router.get("/search", authMiddleware, controller.search);
 router.post("/change-password", authMiddleware, controller.changePassword);
 
+// ===== DIFFIE-HELLMAN KEY ROUTES =====
+router.post("/dh-key", authMiddleware, controller.uploadDHPublicKey);
+router.get("/dh-key/:user_id", controller.getDHPublicKey);
+
 module.exports = router;
 
