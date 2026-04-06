@@ -85,13 +85,6 @@ module.exports.getUsers = async (req, res) => {
       },
       { $unwind: '$userInfo' },
       
-      // NEW: Filter chỉ user có DH public key (đã đăng nhập)
-      {
-        $match: {
-          'userInfo.dh_public_key': { $exists: true, $ne: null }
-        }
-      },
-      
       // 5. Project các field cần thiết
       {
         $project: {

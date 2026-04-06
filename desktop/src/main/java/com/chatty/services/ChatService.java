@@ -39,6 +39,20 @@ public class ChatService {
         this.dhService = dhService;
     }
 
+    // NEW: Helper method to filter users that have uploaded their DH public key
+    private List<User> filterUsersWithValidDHKey(List<User> users) {
+        List<User> validUsers = new ArrayList<>();
+        
+        for (User user : users) {
+            // Check if user has dh_public_key from server response
+            if (user.getDhPublicKey() != null && !user.getDhPublicKey().isEmpty()) {
+                validUsers.add(user);  // ✓ User đã đăng nhập
+            }
+        }
+        
+        return validUsers;
+    }
+
     // lấy danh sách tất cả người dùng
     public List<User> getUsers() throws IOException {
         try {
@@ -49,7 +63,10 @@ public class ChatService {
 
                 Type listType = new TypeToken<List<User>>(){}.getType();
                 System.out.println(userArray);
-                return gson.fromJson(userArray, listType);
+                List<User> allUsers = gson.fromJson(userArray, listType);
+                
+                // NEW: Filter only users with valid DH public key
+                return filterUsersWithValidDHKey(allUsers);
             }
 
             return new ArrayList<>();
@@ -69,7 +86,10 @@ public class ChatService {
                 JsonArray userArray = response.getAsJsonArray("users");
 
                 Type listType = new TypeToken<List<User>>(){}.getType();
-                return gson.fromJson(userArray, listType);
+                List<User> allUsers = gson.fromJson(userArray, listType);
+                
+                // NEW: Filter only users with valid DH public key
+                return filterUsersWithValidDHKey(allUsers);
             }
 
             return new ArrayList<>();

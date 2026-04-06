@@ -13,6 +13,7 @@ public class User {
     private String email;
     private String avatar;
     private String token;
+    private String dh_public_key;  // NEW: Diffie-Hellman public key (g^a)
 
     // các property khi nhắn tin cá nhân
 
@@ -177,5 +178,14 @@ public class User {
     public void setLastMessage(LastMessage lastMessage) {
         this.lastMessage = lastMessage;
         updateStatusPreview();
+    }
+
+    // NEW: Getter and setter for dh_public_key
+    public String getDhPublicKey() {
+        return dh_public_key;
+    }
+
+    public void setDhPublicKey(String dh_public_key) {
+        this.dh_public_key = dh_public_key;
     }
 }

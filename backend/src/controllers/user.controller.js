@@ -101,11 +101,9 @@ module.exports.search = async (req, res) => {
     }
 
     const userId = req.user.id;
-    // NEW: Only return users that have uploaded their DH public key
     const users = await User.find({
       _id: { $ne: userId }, // Loại trừ user hiện tại
-      username: { $regex: keyword, $options: 'i'},
-      dh_public_key: { $exists: true, $ne: null } // NEW: Chỉ user đã đăng nhập và upload DH key
+      username: { $regex: keyword, $options: 'i'}
     }).select('-password')
 
     const groups = await Group.find({
