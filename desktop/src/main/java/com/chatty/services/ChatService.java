@@ -114,9 +114,8 @@ public class ChatService {
                 if (dhService != null) {
                     for (Message msg : messages) {
                         try {
-                            String senderId = msg.getSenderId() instanceof User 
-                                ? ((User) msg.getSenderId()).get_id() 
-                                : (String) msg.getSenderId();
+                            // msg.getSenderId() returns String directly
+                            String senderId = msg.getSenderId();
                             
                             String desKey = dhService.prepareMessageDecryption(senderId);
                             String decryptedContent = cryptoService.desDecrypt(msg.getContent(), desKey);
