@@ -212,15 +212,38 @@ public class HomeController {
                     // NEW: Decrypt message if it's encrypted
                     try {
                         if (chatService.getDHService() != null) {
-                            String senderId = message.getSenderId();
-                            String desKey = chatService.getDHService().prepareMessageDecryption(senderId);
+                            // Use selectedUser.get_id() (friendId) for consistent key derivation
+                            String friendId = selectedUser.get_id();
+                            System.out.println("[Socket] Encrypted message from: " + message.getSenderId());
+                            System.out.println("[Socket] Encrypted content: " + message.getContent().substring(0, Math.min(16, message.getContent().length())) + "...");
+                            
+                            String desKey = chatService.getDHService().prepareMessageDecryption(friendId);
+                            System.out.println("[Socket] DES key derived: " + desKey.substring(0, 8) + "...");
+                            
                             String decryptedContent = cryptoService.desDecrypt(message.getContent(), desKey);
-                            message.setContent(decryptedContent);
-                            System.out.println("[Socket] Message decrypted from sender: " + senderId);
+                            System.out.println("[Socket] Decrypted bytes length: " + decryptedContent.length());
+                            System.out.println("[Socket] Decrypted raw content: '" + decryptedContent + "'");
+                            
+                            // Try to strip PKCS#7 padding
+                            String cleanedContent = decryptedContent;
+                            if (decryptedContent.length() > 0) {
+                                try {
+                                    int lastByte = (int) decryptedContent.charAt(decryptedContent.length() - 1);
+                                    if (lastByte > 0 && lastByte <= 8) {
+                                        cleanedContent = decryptedContent.substring(0, decryptedContent.length() - lastByte);
+                                        System.out.println("[Socket] Stripped " + lastByte + " padding bytes");
+                                    }
+                                } catch (Exception e) {
+                                    System.err.println("[Socket] Failed to strip padding: " + e.getMessage());
+                                }
+                            }
+                            
+                            message.setContent(cleanedContent);
+                            System.out.println("[Socket] Message decrypted successfully: " + cleanedContent);
                         }
                     } catch (Exception e) {
                         System.err.println("[Socket] Failed to decrypt message: " + e.getMessage());
-                        // Keep encrypted content if decryption fails
+                        e.printStackTrace();
                     }
                     
                     messages.add(message);

@@ -133,8 +133,27 @@ public class ChatService {
                             System.out.println("[ChatService] DES key derived: " + desKey.substring(0, 8) + "...");
                             
                             String decryptedContent = cryptoService.desDecrypt(msg.getContent(), desKey);
-                            System.out.println("[ChatService] Decrypted successfully: " + decryptedContent);
-                            msg.setContent(decryptedContent);
+                            System.out.println("[ChatService] Decrypted bytes length: " + decryptedContent.length());
+                            System.out.println("[ChatService] Decrypted raw content: '" + decryptedContent + "'");
+                            
+                            // Try to strip PKCS#7 padding if it exists
+                            String cleanedContent = decryptedContent;
+                            if (decryptedContent.length() > 0) {
+                                // PKCS#7 padding: last byte indicates padding length
+                                try {
+                                    int lastByte = (int) decryptedContent.charAt(decryptedContent.length() - 1);
+                                    if (lastByte > 0 && lastByte <= 8) {
+                                        cleanedContent = decryptedContent.substring(0, decryptedContent.length() - lastByte);
+                                        System.out.println("[ChatService] Stripped " + lastByte + " padding bytes");
+                                        System.out.println("[ChatService] Cleaned content: '" + cleanedContent + "'");
+                                    }
+                                } catch (Exception e) {
+                                    System.err.println("[ChatService] Failed to strip padding: " + e.getMessage());
+                                }
+                            }
+                            
+                            System.out.println("[ChatService] Decrypted successfully: " + cleanedContent);
+                            msg.setContent(cleanedContent);
                         } catch (Exception e) {
                             System.err.println("[ChatService] Failed to decrypt message " + idx + ": " + e.getMessage());
                             e.printStackTrace();
@@ -174,6 +193,8 @@ public class ChatService {
                 System.out.println("[Encryption] DES Key generated: " + desKey.substring(0, 8) + "...");
                 
                 encryptedContent = cryptoService.desEncrypt(content, desKey);
+                System.out.println("[Encryption] Plaintext: '" + content + "' (length: " + content.length() + ")");
+                System.out.println("[Encryption] Ciphertext returned: '" + encryptedContent + "' (length: " + encryptedContent.length() + ")");
                 System.out.println("[Encryption] Message encrypted, new length: " + encryptedContent.length());
             } else {
                 System.out.println("[Encryption] DHService not available, sending plaintext");
