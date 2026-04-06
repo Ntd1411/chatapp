@@ -95,8 +95,8 @@ public class HomeController {
         primaryStage.setResizable(true);
         primaryStage.centerOnScreen();
 
-        // NEW: Re-initialize DHService after successful login
-        authService.reinitializeDHService();
+        // NEW: Re-initialize DHService after successful login with the logged-in user
+        authService.reinitializeDHService(user);
         chatService.setDHService(authService.getDHService());
 
         mainContainer = new BorderPane();

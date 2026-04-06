@@ -193,15 +193,19 @@ public class AuthService {
     }
     
     // NEW: Re-initialize DHService after login (call this from HomeController.show())
-    public void reinitializeDHService() {
-        if (currentUser != null) {
+    public void reinitializeDHService(User user) {
+        if (user != null) {
             try {
-                System.out.println("[AuthService] Re-initializing DHService for logged-in user...");
-                initializeDHService(currentUser);
+                System.out.println("[AuthService] Re-initializing DHService for user: " + user.getUsername());
+                this.currentUser = user;  // NEW: Update currentUser
+                initializeDHService(user);
                 System.out.println("[AuthService] DHService re-initialized successfully");
             } catch (IOException e) {
                 System.err.println("[AuthService] Failed to re-initialize DHService: " + e.getMessage());
+                e.printStackTrace();
             }
+        } else {
+            System.err.println("[AuthService] Cannot re-initialize DHService: user is null");
         }
     }
 
