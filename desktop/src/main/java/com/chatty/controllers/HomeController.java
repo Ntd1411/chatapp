@@ -222,6 +222,13 @@ public class HomeController {
                             
                             String decryptedContent = cryptoService.desDecrypt(message.getContent(), desKey);
                             System.out.println("[Socket] Decrypted bytes length: " + decryptedContent.length());
+                            
+                            // Log bytes as hex
+                            StringBuilder hexView = new StringBuilder();
+                            for (int i = 0; i < decryptedContent.length(); i++) {
+                                hexView.append(String.format("%02x ", (int) decryptedContent.charAt(i)));
+                            }
+                            System.out.println("[Socket] Decrypted bytes (hex): " + hexView.toString());
                             System.out.println("[Socket] Decrypted raw content: '" + decryptedContent + "'");
                             
                             // Try to strip PKCS#7 padding
@@ -229,9 +236,12 @@ public class HomeController {
                             if (decryptedContent.length() > 0) {
                                 try {
                                     int lastByte = (int) decryptedContent.charAt(decryptedContent.length() - 1);
-                                    if (lastByte > 0 && lastByte <= 8) {
+                                    System.out.println("[Socket] Last byte value: 0x" + String.format("%02x", lastByte) + " (" + lastByte + ")");
+                                    if (lastByte > 0 && lastByte <= 8 && decryptedContent.length() >= lastByte) {
                                         cleanedContent = decryptedContent.substring(0, decryptedContent.length() - lastByte);
                                         System.out.println("[Socket] Stripped " + lastByte + " padding bytes");
+                                    } else {
+                                        System.out.println("[Socket] Last byte doesn't look like valid PKCS#7 padding");
                                     }
                                 } catch (Exception e) {
                                     System.err.println("[Socket] Failed to strip padding: " + e.getMessage());

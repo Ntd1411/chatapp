@@ -134,6 +134,13 @@ public class ChatService {
                             
                             String decryptedContent = cryptoService.desDecrypt(msg.getContent(), desKey);
                             System.out.println("[ChatService] Decrypted bytes length: " + decryptedContent.length());
+                            
+                            // Log byte-by-byte as hex
+                            StringBuilder hexView = new StringBuilder();
+                            for (int i = 0; i < decryptedContent.length(); i++) {
+                                hexView.append(String.format("%02x ", (int) decryptedContent.charAt(i)));
+                            }
+                            System.out.println("[ChatService] Decrypted bytes (hex): " + hexView.toString());
                             System.out.println("[ChatService] Decrypted raw content: '" + decryptedContent + "'");
                             
                             // Try to strip PKCS#7 padding if it exists
@@ -142,10 +149,13 @@ public class ChatService {
                                 // PKCS#7 padding: last byte indicates padding length
                                 try {
                                     int lastByte = (int) decryptedContent.charAt(decryptedContent.length() - 1);
-                                    if (lastByte > 0 && lastByte <= 8) {
+                                    System.out.println("[ChatService] Last byte value: 0x" + String.format("%02x", lastByte) + " (" + lastByte + ")");
+                                    if (lastByte > 0 && lastByte <= 8 && decryptedContent.length() >= lastByte) {
                                         cleanedContent = decryptedContent.substring(0, decryptedContent.length() - lastByte);
                                         System.out.println("[ChatService] Stripped " + lastByte + " padding bytes");
                                         System.out.println("[ChatService] Cleaned content: '" + cleanedContent + "'");
+                                    } else {
+                                        System.out.println("[ChatService] Last byte doesn't look like valid PKCS#7 padding");
                                     }
                                 } catch (Exception e) {
                                     System.err.println("[ChatService] Failed to strip padding: " + e.getMessage());
@@ -192,8 +202,16 @@ public class ChatService {
                 String desKey = dhService.prepareMessageEncryption(receiverId);
                 System.out.println("[Encryption] DES Key generated: " + desKey.substring(0, 8) + "...");
                 
-                encryptedContent = cryptoService.desEncrypt(content, desKey);
                 System.out.println("[Encryption] Plaintext: '" + content + "' (length: " + content.length() + ")");
+                
+                // Log plaintext as hex bytes
+                StringBuilder hexView = new StringBuilder();
+                for (int i = 0; i < content.length(); i++) {
+                    hexView.append(String.format("%02x ", (int) content.charAt(i)));
+                }
+                System.out.println("[Encryption] Plaintext bytes (hex): " + hexView.toString());
+                
+                encryptedContent = cryptoService.desEncrypt(content, desKey);
                 System.out.println("[Encryption] Ciphertext returned: '" + encryptedContent + "' (length: " + encryptedContent.length() + ")");
                 System.out.println("[Encryption] Message encrypted, new length: " + encryptedContent.length());
             } else {
