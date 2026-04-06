@@ -125,14 +125,20 @@ public class ChatService {
                         Message msg = messages.get(idx);
                         try {
                             System.out.println("[ChatService] Decrypting message " + idx + " from sender: " + msg.getSenderId());
-                            System.out.println("[ChatService] Encrypted content: " + msg.getContent().substring(0, Math.min(16, msg.getContent().length())) + "...");
+                            System.out.println("[ChatService] Encrypted content (hex string): " + msg.getContent().substring(0, Math.min(16, msg.getContent().length())) + "...");
                             
                             // NEW: Use friendId (the other user in conversation) for key derivation
                             // This ensures we derive the SAME key regardless of whether we sent or received the message
                             String desKey = dhService.prepareMessageDecryption(friendId);
                             System.out.println("[ChatService] DES key derived: " + desKey.substring(0, 8) + "...");
                             
-                            String decryptedContent = cryptoService.desDecrypt(msg.getContent(), desKey);
+                            // NEW: Convert hex string to binary before decryption!
+                            // The ciphertext is stored as hex string in DB, but desDecrypt expects binary
+                            String ciphertextHex = msg.getContent();
+                            String ciphertextBinary = hexStringToString(ciphertextHex);
+                            System.out.println("[ChatService] Converted hex (length " + ciphertextHex.length() + ") to binary string (length " + ciphertextBinary.length() + ")");
+                            
+                            String decryptedContent = cryptoService.desDecrypt(ciphertextBinary, desKey);
                             System.out.println("[ChatService] Decrypted bytes length: " + decryptedContent.length());
                             
                             // Log byte-by-byte as hex
@@ -246,6 +252,18 @@ public class ChatService {
             e.printStackTrace();
             return null;
         }
+    }
+    
+    // NEW: Helper method to convert hex string to binary string
+    // Ciphertext is stored as hex in DB, but desDecrypt expects binary representation
+    private String hexStringToString(String hex) {
+        StringBuilder result = new StringBuilder();
+        for (int i = 0; i < hex.length(); i += 2) {
+            String hexByte = hex.substring(i, i + 2);
+            int byteValue = Integer.parseInt(hexByte, 16);
+            result.append((char) byteValue);
+        }
+        return result.toString();
     }
 }
 

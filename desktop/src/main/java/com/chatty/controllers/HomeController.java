@@ -215,12 +215,16 @@ public class HomeController {
                             // Use selectedUser.get_id() (friendId) for consistent key derivation
                             String friendId = selectedUser.get_id();
                             System.out.println("[Socket] Encrypted message from: " + message.getSenderId());
-                            System.out.println("[Socket] Encrypted content: " + message.getContent().substring(0, Math.min(16, message.getContent().length())) + "...");
+                            System.out.println("[Socket] Encrypted content (hex string): " + message.getContent().substring(0, Math.min(16, message.getContent().length())) + "...");
                             
                             String desKey = chatService.getDHService().prepareMessageDecryption(friendId);
                             System.out.println("[Socket] DES key derived: " + desKey.substring(0, 8) + "...");
                             
-                            String decryptedContent = cryptoService.desDecrypt(message.getContent(), desKey);
+                            // NEW: Convert hex string to binary before decryption!
+                            String ciphertextBinary = hexStringToString(message.getContent());
+                            System.out.println("[Socket] Converted hex to binary string");
+                            
+                            String decryptedContent = cryptoService.desDecrypt(ciphertextBinary, desKey);
                             System.out.println("[Socket] Decrypted bytes length: " + decryptedContent.length());
                             
                             // Log bytes as hex
@@ -2536,5 +2540,17 @@ public class HomeController {
                 }
             });
         }
+    }
+    
+    // NEW: Helper method to convert hex string to binary string
+    // Ciphertext is stored as hex in DB, but desDecrypt expects binary representation
+    private String hexStringToString(String hex) {
+        StringBuilder result = new StringBuilder();
+        for (int i = 0; i < hex.length(); i += 2) {
+            String hexByte = hex.substring(i, i + 2);
+            int byteValue = Integer.parseInt(hexByte, 16);
+            result.append((char) byteValue);
+        }
+        return result.toString();
     }
 }
