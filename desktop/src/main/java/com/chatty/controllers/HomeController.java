@@ -564,7 +564,8 @@ public class HomeController {
                 createGroupBtn.setVisible(false);
                 createGroupBtn.setManaged(false);
             }
-            updateListViewBasedOnFilterAndSearch();
+            // NEW: Reload user list from server when switching to users tab
+            loadUsers();
         } else {
             userListView.setVisible(false);
             userListView.setManaged(false);
