@@ -69,12 +69,16 @@ public class DHService {
             throw new IllegalStateException("User ID not set. Call setUserId() first.");
         }
         
+        System.out.println("[DH] Generating new secret exponent for user: " + userId);
+        
         SecureRandom random = new SecureRandom();
         int bitLength = P.bitLength();  // 2048 bits
         this.secretExponent = new BigInteger(bitLength, random).mod(P.subtract(BigInteger.ONE));
         if (this.secretExponent.compareTo(BigInteger.ONE) < 0) {
             this.secretExponent = this.secretExponent.add(BigInteger.ONE);
         }
+        
+        System.out.println("[DH] Secret exponent generated, is null: " + (secretExponent == null));
         
         // NEW: Save to local storage immediately
         saveSecretExponentToStorage();
@@ -90,21 +94,26 @@ public class DHService {
         }
         
         try {
+            System.out.println("[DH] Attempting to load secret exponent from: " + currentDHKeyFile);
+            
             File keyFile = new File(currentDHKeyFile);
             if (!keyFile.exists()) {
+                System.out.println("[DH] File does not exist: " + currentDHKeyFile);
                 return false;
             }
             
             String aHex = new String(Files.readAllBytes(Paths.get(currentDHKeyFile)), StandardCharsets.UTF_8).trim();
             if (aHex.isEmpty()) {
+                System.out.println("[DH] File is empty");
                 return false;
             }
             
             this.secretExponent = new BigInteger(aHex, 16);
-            System.out.println("✓ Loaded existing secret exponent for user: " + userId);
+            System.out.println("[DH] Loaded existing secret exponent for user: " + userId);
+            System.out.println("[DH] Secret exponent is now: " + (secretExponent != null ? "SET" : "NULL"));
             return true;
         } catch (Exception e) {
-            System.err.println("Failed to load secret exponent: " + e.getMessage());
+            System.err.println("[DH] Failed to load secret exponent: " + e.getMessage());
             return false;
         }
     }
@@ -189,31 +198,43 @@ public class DHService {
     public String prepareMessageEncryption(String recipientId) {
         // Check cache first
         if (desKeyCache.containsKey(recipientId)) {
+            System.out.println("[DH] DES key found in cache for recipient: " + recipientId);
             return desKeyCache.get(recipientId);
         }
 
         try {
+            System.out.println("[DH] Preparing message encryption for recipient: " + recipientId);
+            System.out.println("[DH] Secret exponent initialized: " + (secretExponent != null));
+            System.out.println("[DH] Current user ID: " + userId);
+            
             // Fetch recipient's dh_public_key from server
             // GET /users/dh-key/:recipientId
+            System.out.println("[DH] Fetching recipient's DH public key...");
             String recipientPublicKeyHex = apiService.getDHPublicKey(recipientId);
 
             if (recipientPublicKeyHex == null || recipientPublicKeyHex.isEmpty()) {
                 throw new RuntimeException("Recipient's DH public key not found on server");
             }
 
+            System.out.println("[DH] Recipient's DH public key fetched: " + recipientPublicKeyHex.substring(0, 8) + "...");
             BigInteger recipientPublicExp = new BigInteger(recipientPublicKeyHex, 16);
 
             // Compute shared secret: (g^b)^a mod p = g^(a*b) mod p
+            System.out.println("[DH] Computing shared secret using modPow...");
             BigInteger sharedSecret = recipientPublicExp.modPow(secretExponent, P);
+            System.out.println("[DH] Shared secret computed successfully");
 
             // Derive DES key from shared secret
             String desKey = deriveDesKey(sharedSecret, recipientId);
+            System.out.println("[DH] DES key derived: " + desKey.substring(0, 8) + "...");
 
             // Cache it
             desKeyCache.put(recipientId, desKey);
 
             return desKey;
         } catch (Exception e) {
+            System.err.println("[DH] ERROR: " + e.getMessage());
+            e.printStackTrace();
             throw new RuntimeException("Failed to prepare message encryption: " + e.getMessage(), e);
         }
     }
