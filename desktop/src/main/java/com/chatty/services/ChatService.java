@@ -117,17 +117,19 @@ public class ChatService {
                 
                 System.out.println("[ChatService.getMessages] Loaded " + messages.size() + " messages from server");
                 System.out.println("[ChatService.getMessages] DHService available: " + (dhService != null));
+                System.out.println("[ChatService.getMessages] FriendId (other user): " + friendId);
                 
                 // NEW: Decrypt messages if DH service is available
                 if (dhService != null) {
                     for (int idx = 0; idx < messages.size(); idx++) {
                         Message msg = messages.get(idx);
                         try {
-                            String senderId = msg.getSenderId();
-                            System.out.println("[ChatService] Decrypting message " + idx + " from sender: " + senderId);
+                            System.out.println("[ChatService] Decrypting message " + idx + " from sender: " + msg.getSenderId());
                             System.out.println("[ChatService] Encrypted content: " + msg.getContent().substring(0, Math.min(16, msg.getContent().length())) + "...");
                             
-                            String desKey = dhService.prepareMessageDecryption(senderId);
+                            // NEW: Use friendId (the other user in conversation) for key derivation
+                            // This ensures we derive the SAME key regardless of whether we sent or received the message
+                            String desKey = dhService.prepareMessageDecryption(friendId);
                             System.out.println("[ChatService] DES key derived: " + desKey.substring(0, 8) + "...");
                             
                             String decryptedContent = cryptoService.desDecrypt(msg.getContent(), desKey);
