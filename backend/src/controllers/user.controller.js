@@ -1,6 +1,5 @@
 const User = require("../models/user.model");
 const Group = require("../models/group.model");
-const PublicKey = require("../models/publickey.model");
 const hashingService = require("../services/hasing.service");
 
 module.exports.editAccount = async (req, res) => {
