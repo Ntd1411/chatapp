@@ -252,7 +252,7 @@ public class ApiService {
         java.util.Map<String, String> body = new java.util.HashMap<>();
         body.put("dh_public_key", dhPublicKeyHex);
         
-        post("/users/dh-key", body, String.class);
+        post("/users/dh-key", body, com.google.gson.JsonObject.class);
     }
 
     /**
