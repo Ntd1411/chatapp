@@ -38,6 +38,11 @@ public class ChatService {
     public void setDHService(DHService dhService) {
         this.dhService = dhService;
     }
+    
+    // NEW: Getter for DHService (used by HomeController for decryption)
+    public DHService getDHService() {
+        return dhService;
+    }
 
     // NEW: Helper method to filter users that have uploaded their DH public key
     private List<User> filterUsersWithValidDHKey(List<User> users) {

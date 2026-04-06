@@ -32,6 +32,7 @@ public class HomeController {
     private final GroupService groupService;
     private final SocketService socketService;
     private final UserService userService;
+    private final CryptoService cryptoService;  // NEW: For message decryption
     private final User currentUser;
 
     // nhắn tin cá nhân
@@ -78,6 +79,7 @@ public class HomeController {
         this.chatService.setDHService(authService.getDHService());  // NEW: Set DHService from AuthService
         this.groupService = new GroupService(socketService);
         this.userService = new UserService();
+        this.cryptoService = new CryptoService();  // NEW: Initialize CryptoService for decryption
         this.messages = new ArrayList<>();
         this.groupMessages = new ArrayList<>();
         this.allUsers = new ArrayList<>();
@@ -206,8 +208,22 @@ public class HomeController {
         socketService.setOnNewMessage(message -> {
             if (selectedUser != null && message.getSenderId().equals(selectedUser.get_id())) {
                 // nếu đang chat cùng mà có tin mới
-                messages.add(message);
                 Platform.runLater(() -> {
+                    // NEW: Decrypt message if it's encrypted
+                    try {
+                        if (chatService.getDHService() != null) {
+                            String senderId = message.getSenderId();
+                            String desKey = chatService.getDHService().prepareMessageDecryption(senderId);
+                            String decryptedContent = cryptoService.desDecrypt(message.getContent(), desKey);
+                            message.setContent(decryptedContent);
+                            System.out.println("[Socket] Message decrypted from sender: " + senderId);
+                        }
+                    } catch (Exception e) {
+                        System.err.println("[Socket] Failed to decrypt message: " + e.getMessage());
+                        // Keep encrypted content if decryption fails
+                    }
+                    
+                    messages.add(message);
 
                     // vẽ lại giao diện chat để hiện tin mới
                     renderMessages();
@@ -1760,8 +1776,29 @@ public class HomeController {
             messageContent.setMaxWidth(400);
             messageContent.setFillWidth(false);
 
-            if (message.getContent() != null && !message.getContent().isEmpty()) {
-                Label messageText = new Label(message.getContent());
+            // NEW: Decrypt message content if it's encrypted
+            String displayContent = message.getContent();
+            try {
+                if (chatService.getDHService() != null && displayContent != null && !displayContent.isEmpty()) {
+                    // Try to decrypt - use the other user's ID (selectedUser) for key derivation
+                    String otherUserId = isMyMessage ? selectedUser.get_id() : message.getSenderId();
+                    String desKey = chatService.getDHService().prepareMessageDecryption(otherUserId);
+                    String decryptedContent = cryptoService.desDecrypt(displayContent, desKey);
+                    
+                    // If decryption succeeds and looks like plaintext, use it
+                    // Only use if it's significantly different (not completely garbled)
+                    if (decryptedContent != null && !decryptedContent.isEmpty()) {
+                        displayContent = decryptedContent;
+                    }
+                }
+            } catch (Exception e) {
+                // Decryption failed - display original (might be plaintext or garbled)
+                System.err.println("[Render] Failed to decrypt message: " + e.getMessage());
+                // Keep original content if decryption fails
+            }
+
+            if (displayContent != null && !displayContent.isEmpty()) {
+                Label messageText = new Label(displayContent);
                 messageText.getStyleClass().add("message-text");
                 messageText.setWrapText(true);
                 messageContent.getChildren().add(messageText);
@@ -1811,19 +1848,23 @@ public class HomeController {
             renderGroupMessages();
         } else if (selectedUser != null) {
             // gửi tin nhắn cá nhân
-            chatService.sendMessage(currentUser.get_id(), selectedUser.get_id(), content);
+            Message sentMsg = chatService.sendMessage(currentUser.get_id(), selectedUser.get_id(), content);
 
-            // tạo 1 tin nhắn tạm để cập nhật ngay lên giao diện
-            Message localMsg = new Message();
-            localMsg.setSenderId(currentUser.get_id());
-            localMsg.setReceiverId(selectedUser.get_id());
-            localMsg.setContent(content);
-            localMsg.setCreatedAt(Instant.now().toString());
-            messages.add(localMsg);
-            renderMessages();
-            
-            // Cập nhật lastmessage ở sidebar ngay lập tức
-            updateSidebarLastMessage(localMsg);
+            if (sentMsg != null) {
+                // NEW: Use the encrypted message returned from ChatService
+                // which will be stored on server as encrypted
+                messages.add(sentMsg);
+                renderMessages();
+                
+                // Cập nhật lastmessage ở sidebar ngay lập tức
+                // But use original plaintext content for preview
+                Message previewMsg = new Message();
+                previewMsg.setSenderId(sentMsg.getSenderId());
+                previewMsg.setReceiverId(sentMsg.getReceiverId());
+                previewMsg.setContent(content);  // plaintext for preview
+                previewMsg.setCreatedAt(sentMsg.getCreatedAt());
+                updateSidebarLastMessage(previewMsg);
+            }
         }
 
         // xóa sạch nội dung trong trường nhập tin nhắn mỗi khi gửi đi
