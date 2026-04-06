@@ -2551,6 +2551,15 @@ public class HomeController {
             int byteValue = Integer.parseInt(hexByte, 16);
             result.append((char) byteValue);
         }
+        
+        // Log each byte for debugging
+        System.out.println("[hexStringToString] Input hex: " + hex);
+        System.out.print("[hexStringToString] Output bytes (hex): ");
+        for (int i = 0; i < result.length(); i++) {
+            System.out.print(String.format("%02x ", (int) result.charAt(i)));
+        }
+        System.out.println();
+        
         return result.toString();
     }
 }
