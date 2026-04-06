@@ -75,6 +75,7 @@ public class HomeController {
         this.authService = new AuthService();
         this.socketService = new SocketService();
         this.chatService = new ChatService(socketService);
+        this.chatService.setDHService(authService.getDHService());  // NEW: Set DHService from AuthService
         this.groupService = new GroupService(socketService);
         this.userService = new UserService();
         this.messages = new ArrayList<>();
