@@ -140,20 +140,33 @@ public class ChatService {
     // gửi tin nhắn
     public Message sendMessage(String senderId, String receiverId, String content){
         if(content == null || content.trim().isEmpty()){
+            System.out.println("[SendMessage] Message content is empty, ignoring");
             return null;
         }
 
         try {
+            System.out.println("[SendMessage] Starting...");
+            System.out.println("   From: " + senderId);
+            System.out.println("   To: " + receiverId);
+            System.out.println("   Content length: " + content.length());
+            
             // NEW: Prepare message encryption using DH if available
             String encryptedContent = content;
             if (dhService != null) {
+                System.out.println("[Encryption] Preparing DH encryption...");
                 String desKey = dhService.prepareMessageEncryption(receiverId);
+                System.out.println("[Encryption] DES Key generated: " + desKey.substring(0, 8) + "...");
+                
                 encryptedContent = cryptoService.desEncrypt(content, desKey);
+                System.out.println("[Encryption] Message encrypted, new length: " + encryptedContent.length());
+            } else {
+                System.out.println("[Encryption] DHService not available, sending plaintext");
             }
 
             // tạo tin nhắn mới
             Message localMsg = new Message();
             localMsg.set_id(String.valueOf(System.currentTimeMillis()));
+            System.out.println("[Message] Created with ID: " + localMsg.get_id());
 
             // tạo một đối tượng User cho người gửi
             User senderUser = new User();
@@ -168,11 +181,13 @@ public class ChatService {
             localMsg.setCreatedAt(Instant.now().toString());
 
             // gửi qua socket
+            System.out.println("[Socket] Sending message via socket...");
             socketService.sendMessage(receiverId, encryptedContent);
+            System.out.println("[Socket] Message sent successfully!");
 
             return localMsg;
         } catch (Exception e) {
-            System.err.println("Failed to send message: " + e.getMessage());
+            System.err.println("[SendMessage] Failed to send message: " + e.getMessage());
             e.printStackTrace();
             return null;
         }
