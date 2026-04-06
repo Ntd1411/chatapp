@@ -93,6 +93,7 @@ module.exports.getUsers = async (req, res) => {
           fullName: '$userInfo.fullName',
           email: '$userInfo.email',
           avatar: '$userInfo.avatar',
+          dh_public_key: '$userInfo.dh_public_key',
           unreadCount: 1,
           lastMessage: {
             content: '$lastMessage.content',
