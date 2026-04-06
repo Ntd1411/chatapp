@@ -225,7 +225,7 @@ public class DHService {
             System.out.println("[DH] Shared secret computed successfully");
 
             // Derive DES key from shared secret
-            String desKey = deriveDesKey(sharedSecret, recipientId);
+            String desKey = deriveDesKey(sharedSecret, userId, recipientId);
             System.out.println("[DH] DES key derived: " + desKey.substring(0, 8) + "...");
 
             // Cache it
@@ -246,10 +246,12 @@ public class DHService {
     public String prepareMessageDecryption(String senderId) {
         // Check cache first
         if (desKeyCache.containsKey(senderId)) {
+            System.out.println("[DH.prepareMessageDecryption] Key found in cache for sender: " + senderId);
             return desKeyCache.get(senderId);
         }
 
         try {
+            System.out.println("[DH.prepareMessageDecryption] Preparing decryption for sender: " + senderId);
             // Fetch sender's dh_public_key from server
             // GET /users/dh-key/:senderId
             String senderPublicKeyHex = apiService.getDHPublicKey(senderId);
@@ -258,38 +260,53 @@ public class DHService {
                 throw new RuntimeException("Sender's DH public key not found on server");
             }
 
+            System.out.println("[DH.prepareMessageDecryption] Fetched sender's public key");
             BigInteger senderPublicExp = new BigInteger(senderPublicKeyHex, 16);
 
             // Compute shared secret: (g^a_sender)^a_receiver mod p = g^(a_receiver*a_sender) mod p
             BigInteger sharedSecret = senderPublicExp.modPow(secretExponent, P);
+            System.out.println("[DH.prepareMessageDecryption] Shared secret computed");
 
             // Derive DES key from shared secret
-            String desKey = deriveDesKey(sharedSecret, senderId);
+            String desKey = deriveDesKey(sharedSecret, userId, senderId);
 
             // Cache it
             desKeyCache.put(senderId, desKey);
 
             return desKey;
         } catch (Exception e) {
+            System.err.println("[DH.prepareMessageDecryption] ERROR: " + e.getMessage());
+            e.printStackTrace();
             throw new RuntimeException("Failed to prepare message decryption: " + e.getMessage(), e);
         }
     }
 
     /**
      * Derive DES key from shared secret using HMAC-SHA256.
-     * DES_key = first 8 bytes (16 hex chars) of HMAC-SHA256(shared_secret, other_user_id)
+     * Uses BOTH user IDs in canonical (sorted) order to ensure both parties derive the SAME key.
+     * DES_key = first 8 bytes (16 hex chars) of HMAC-SHA256(shared_secret, canonical_user_pair)
      */
-    private String deriveDesKey(BigInteger sharedSecret, String otherUserId) {
+    private String deriveDesKey(BigInteger sharedSecret, String userId, String otherUserId) {
         try {
+            // NEW: Use both user IDs in sorted order for CANONICAL representation
+            // This ensures both A and B derive the SAME key from the SAME shared secret
+            String[] ids = {userId, otherUserId};
+            java.util.Arrays.sort(ids);
+            String canonicalPair = ids[0] + "|" + ids[1];
+            
+            System.out.println("[DH.deriveDesKey] Current userId: " + userId);
+            System.out.println("[DH.deriveDesKey] Other userId: " + otherUserId);
+            System.out.println("[DH.deriveDesKey] Canonical pair: " + canonicalPair);
+            
             String sharedSecretHex = sharedSecret.toString(16);
             byte[] sharedSecretBytes = sharedSecretHex.getBytes();
-            byte[] otherUserIdBytes = otherUserId.getBytes();
+            byte[] canonicalPairBytes = canonicalPair.getBytes();
 
             // HMAC-SHA256
             Mac hmac = Mac.getInstance("HmacSHA256");
             SecretKeySpec secretKey = new SecretKeySpec(sharedSecretBytes, 0, sharedSecretBytes.length, "HmacSHA256");
             hmac.init(secretKey);
-            byte[] digestBytes = hmac.doFinal(otherUserIdBytes);
+            byte[] digestBytes = hmac.doFinal(canonicalPairBytes);
 
             // Convert first 8 bytes to hex (16 hex characters for DES key)
             StringBuilder desKeyHex = new StringBuilder();
@@ -297,7 +314,9 @@ public class DHService {
                 desKeyHex.append(String.format("%02x", digestBytes[i]));
             }
 
-            return desKeyHex.toString();
+            String finalKey = desKeyHex.toString();
+            System.out.println("[DH.deriveDesKey] Generated key: " + finalKey);
+            return finalKey;
         } catch (Exception e) {
             throw new RuntimeException("Failed to derive DES key: " + e.getMessage(), e);
         }

@@ -115,18 +115,27 @@ public class ChatService {
                 Type listType = new TypeToken<List<Message>>(){}.getType();
                 List<Message> messages = gson.fromJson(messageArray, listType);
                 
+                System.out.println("[ChatService.getMessages] Loaded " + messages.size() + " messages from server");
+                System.out.println("[ChatService.getMessages] DHService available: " + (dhService != null));
+                
                 // NEW: Decrypt messages if DH service is available
                 if (dhService != null) {
-                    for (Message msg : messages) {
+                    for (int idx = 0; idx < messages.size(); idx++) {
+                        Message msg = messages.get(idx);
                         try {
-                            // msg.getSenderId() returns String directly
                             String senderId = msg.getSenderId();
+                            System.out.println("[ChatService] Decrypting message " + idx + " from sender: " + senderId);
+                            System.out.println("[ChatService] Encrypted content: " + msg.getContent().substring(0, Math.min(16, msg.getContent().length())) + "...");
                             
                             String desKey = dhService.prepareMessageDecryption(senderId);
+                            System.out.println("[ChatService] DES key derived: " + desKey.substring(0, 8) + "...");
+                            
                             String decryptedContent = cryptoService.desDecrypt(msg.getContent(), desKey);
+                            System.out.println("[ChatService] Decrypted successfully: " + decryptedContent);
                             msg.setContent(decryptedContent);
                         } catch (Exception e) {
-                            System.err.println("Failed to decrypt message: " + e.getMessage());
+                            System.err.println("[ChatService] Failed to decrypt message " + idx + ": " + e.getMessage());
+                            e.printStackTrace();
                             // Keep encrypted content if decryption fails
                         }
                     }

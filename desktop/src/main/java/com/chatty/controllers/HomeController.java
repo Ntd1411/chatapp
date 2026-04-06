@@ -1776,29 +1776,8 @@ public class HomeController {
             messageContent.setMaxWidth(400);
             messageContent.setFillWidth(false);
 
-            // NEW: Decrypt message content if it's encrypted
-            String displayContent = message.getContent();
-            try {
-                if (chatService.getDHService() != null && displayContent != null && !displayContent.isEmpty()) {
-                    // Try to decrypt - use the other user's ID (selectedUser) for key derivation
-                    String otherUserId = isMyMessage ? selectedUser.get_id() : message.getSenderId();
-                    String desKey = chatService.getDHService().prepareMessageDecryption(otherUserId);
-                    String decryptedContent = cryptoService.desDecrypt(displayContent, desKey);
-                    
-                    // If decryption succeeds and looks like plaintext, use it
-                    // Only use if it's significantly different (not completely garbled)
-                    if (decryptedContent != null && !decryptedContent.isEmpty()) {
-                        displayContent = decryptedContent;
-                    }
-                }
-            } catch (Exception e) {
-                // Decryption failed - display original (might be plaintext or garbled)
-                System.err.println("[Render] Failed to decrypt message: " + e.getMessage());
-                // Keep original content if decryption fails
-            }
-
-            if (displayContent != null && !displayContent.isEmpty()) {
-                Label messageText = new Label(displayContent);
+            if (message.getContent() != null && !message.getContent().isEmpty()) {
+                Label messageText = new Label(message.getContent());
                 messageText.getStyleClass().add("message-text");
                 messageText.setWrapText(true);
                 messageContent.getChildren().add(messageText);
@@ -1851,19 +1830,20 @@ public class HomeController {
             Message sentMsg = chatService.sendMessage(currentUser.get_id(), selectedUser.get_id(), content);
 
             if (sentMsg != null) {
-                // NEW: Use the encrypted message returned from ChatService
-                // which will be stored on server as encrypted
-                messages.add(sentMsg);
+                // NEW: Create a displayable message with PLAINTEXT (not encrypted)
+                // while the encrypted version is sent over socket to server
+                Message displayMsg = new Message();
+                displayMsg.set_id(sentMsg.get_id());
+                displayMsg.setSenderId(sentMsg.getSenderId());
+                displayMsg.setReceiverId(sentMsg.getReceiverId());
+                displayMsg.setContent(content);  // Use PLAINTEXT for display
+                displayMsg.setCreatedAt(sentMsg.getCreatedAt());
+                
+                messages.add(displayMsg);
                 renderMessages();
                 
                 // Cập nhật lastmessage ở sidebar ngay lập tức
-                // But use original plaintext content for preview
-                Message previewMsg = new Message();
-                previewMsg.setSenderId(sentMsg.getSenderId());
-                previewMsg.setReceiverId(sentMsg.getReceiverId());
-                previewMsg.setContent(content);  // plaintext for preview
-                previewMsg.setCreatedAt(sentMsg.getCreatedAt());
-                updateSidebarLastMessage(previewMsg);
+                updateSidebarLastMessage(displayMsg);
             }
         }
 
