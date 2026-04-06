@@ -11,8 +11,6 @@ router.patch("/update", authMiddleware, validate.editAccountValidate, controller
 router.patch("/upload-avatar", authMiddleware, uploadMulter.single("avatar"), uploadCloud.upload, controller.uploadAvatar);
 router.get("/search", authMiddleware, controller.search);
 router.post("/change-password", authMiddleware, controller.changePassword);
-router.post("/public-key", authMiddleware, controller.uploadPublicKey);
-router.get("/public-key/:id", controller.getPublicKey);
 
 module.exports = router;
 
