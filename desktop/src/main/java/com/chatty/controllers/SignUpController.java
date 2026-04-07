@@ -26,6 +26,7 @@ public class SignUpController {
 
     public void show(Stage primaryStage) {
         primaryStage.setTitle("Kma Chatty - Đăng ký");
+        primaryStage.setResizable(true);
         primaryStage.centerOnScreen();
 
         // khung chứa chính
@@ -166,7 +167,7 @@ public class SignUpController {
 
         // phần bên phải - ảnh và lời chào mừng
         VBox rightPane = new VBox();
-        rightPane.setPrefWidth(550);
+        HBox.setHgrow(rightPane, Priority.ALWAYS);
         rightPane.getStyleClass().add("login-pattern-pane");
         ImageView logo = new ImageView();
         logo.setFitWidth(250);
@@ -240,9 +241,12 @@ public class SignUpController {
             new LoginController().show(primaryStage);
         });
 
-        Scene scene = new Scene(mainContainer, 1000, 700);
+        Scene scene = new Scene(mainContainer, 1200, 700);
         scene.getStylesheets().add(getClass().getResource("/styles.css").toExternalForm());
         primaryStage.setScene(scene);
+        mainContainer.applyCss();
+        mainContainer.layout();
+        primaryStage.sizeToScene();
         primaryStage.show();
 
         Platform.runLater(mainContainer::requestFocus);
