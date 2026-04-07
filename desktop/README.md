@@ -16,7 +16,7 @@ mvn --version
 sudo apt-get install build-essential
 
 # Cài driver
-cd desktop/src/driver && make clean && make && make install
+cd desktop/src/driver && make clean && make && make install && cd ../..
 
 # Build project
 cd desktop

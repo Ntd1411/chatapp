@@ -1654,24 +1654,45 @@ public class HomeController {
     // hàm tải người dùng
     private void loadUsers() {
         new Thread(() -> {
+            long startTime = System.currentTimeMillis();
             try {
+                System.out.println("[LoadUsers] Fetching user list from server...");
+                long networkStart = System.currentTimeMillis();
                 allUsers = chatService.getUsers();
-                Platform.runLater(() -> {
-                    // lặp qua từng người cập nhật trạng thái onl/off và decrypt lastMessage
-                    for (User u : allUsers) {
-                        // NEW: Decrypt lastMessage if exists
-                        if (u.getLastMessage() != null && u.getLastMessage().getContent() != null) {
-                            try {
-                                String encryptedContent = u.getLastMessage().getContent();
-                                String decryptedContent = decryptLastMessage(u.get_id(), encryptedContent);
-                                u.getLastMessage().setContent(decryptedContent);
-                                System.out.println("[LoadUsers] Decrypted lastMessage for user: " + u.getUsername() + " -> " + decryptedContent);
-                            } catch (Exception e) {
-                                System.err.println("[LoadUsers] Failed to decrypt lastMessage for user: " + u.getUsername() + " - " + e.getMessage());
-                                // Keep encrypted if fails
-                            }
+                long networkTime = System.currentTimeMillis() - networkStart;
+                System.out.println("[LoadUsers] Fetched " + allUsers.size() + " users in " + networkTime + "ms");
+                
+                // IMPORTANT: Decrypt lastMessage on BACKGROUND THREAD (not in Platform.runLater!)
+                // This avoids blocking the UI while decrypting
+                System.out.println("[LoadUsers] ⚠ Decrypting lastMessage for all users (background thread)...");
+                long decryptStart = System.currentTimeMillis();
+                int decryptedCount = 0;
+                
+                for (User u : allUsers) {
+                    // NEW: Decrypt lastMessage if exists
+                    if (u.getLastMessage() != null && u.getLastMessage().getContent() != null) {
+                        try {
+                            String encryptedContent = u.getLastMessage().getContent();
+                            String decryptedContent = decryptLastMessage(u.get_id(), encryptedContent);
+                            u.getLastMessage().setContent(decryptedContent);
+                            decryptedCount++;
+                        } catch (Exception e) {
+                            System.err.println("[LoadUsers] Failed to decrypt lastMessage for user: " + u.getUsername() + " - " + e.getMessage());
+                            // Keep encrypted if fails
                         }
-                        
+                    }
+                }
+                
+                long decryptTime = System.currentTimeMillis() - decryptStart;
+                System.out.println("[LoadUsers] ✓ Decrypted " + decryptedCount + " lastMessages in " + decryptTime + "ms");
+                
+                // NOW update UI with already-decrypted data
+                Platform.runLater(() -> {
+                    System.out.println("[LoadUsers] Updating UI with decrypted data...");
+                    long uiStart = System.currentTimeMillis();
+                    
+                    // lặp qua từng người cập nhật trạng thái onl/off
+                    for (User u : allUsers) {
                         if (onlineUserIds.contains(u.get_id())) {
                             u.setOnline(true);
                         }
@@ -1685,6 +1706,12 @@ public class HomeController {
                     updateListViewBasedOnFilterAndSearch();
                     updateOnlineCountLabel();
                     searchStatusLabel.setVisible(false);
+                    
+                    long uiTime = System.currentTimeMillis() - uiStart;
+                    long totalTime = System.currentTimeMillis() - startTime;
+                    System.out.println("[LoadUsers] =====================================================");
+                    System.out.println("[LoadUsers] Network: " + networkTime + "ms | Decrypt: " + decryptTime + "ms | UI: " + uiTime + "ms | Total: " + totalTime + "ms");
+                    System.out.println("[LoadUsers] =====================================================");
                 });
             } catch (Exception e) {
                 e.printStackTrace();

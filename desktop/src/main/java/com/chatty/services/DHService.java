@@ -63,13 +63,15 @@ public class DHService {
     /**
      * Generate a random 2048-bit secret exponent 'a' at signup.
      * Stores it in memory for this session.
+     * WARNING: This is CPU-intensive (modPow on 2048-bit numbers), run on background thread!
      */
     public void generateSecretExponent() {
+        long startTime = System.currentTimeMillis();
         if (currentDHKeyFile == null) {
             throw new IllegalStateException("User ID not set. Call setUserId() first.");
         }
         
-        System.out.println("[DH] Generating new secret exponent for user: " + userId);
+        System.out.println("[DH] ⚠ Generating new secret exponent for user: " + userId + " (CPU-intensive, ~1-2 seconds)");
         
         SecureRandom random = new SecureRandom();
         int bitLength = P.bitLength();  // 2048 bits
@@ -78,7 +80,8 @@ public class DHService {
             this.secretExponent = this.secretExponent.add(BigInteger.ONE);
         }
         
-        System.out.println("[DH] Secret exponent generated, is null: " + (secretExponent == null));
+        long elapsedTime = System.currentTimeMillis() - startTime;
+        System.out.println("[DH] ✓ Secret exponent generated in " + elapsedTime + "ms");
         
         // NEW: Save to local storage immediately
         saveSecretExponentToStorage();

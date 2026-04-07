@@ -106,8 +106,12 @@ public class ChatService {
 
     // tải toàn bộ tin nhắn với 1 người dùng cụ thể
     public List<Message> getMessages(String friendId) throws IOException {
+        long totalStart = System.currentTimeMillis();
+        long networkStart = System.currentTimeMillis();
+        
         try {
             JsonObject response = apiService.get("/messages/" + friendId, JsonObject.class, null);
+            long networkTime = System.currentTimeMillis() - networkStart;
 
             if(response != null && response.has("messages")){
                 JsonArray messageArray = response.getAsJsonArray("messages");
@@ -115,66 +119,60 @@ public class ChatService {
                 Type listType = new TypeToken<List<Message>>(){}.getType();
                 List<Message> messages = gson.fromJson(messageArray, listType);
                 
-                System.out.println("[ChatService.getMessages] Loaded " + messages.size() + " messages from server");
+                System.out.println("[ChatService.getMessages] Loaded " + messages.size() + " messages from server (" + networkTime + "ms)");
                 System.out.println("[ChatService.getMessages] DHService available: " + (dhService != null));
                 System.out.println("[ChatService.getMessages] FriendId (other user): " + friendId);
                 
                 // NEW: Decrypt messages if DH service is available
-                if (dhService != null) {
+                if (dhService != null && messages.size() > 0) {
+                    long decryptStart = System.currentTimeMillis();
+                    int decryptedCount = 0;
+                    
                     for (int idx = 0; idx < messages.size(); idx++) {
                         Message msg = messages.get(idx);
                         try {
-                            System.out.println("[ChatService] Decrypting message " + idx + " from sender: " + msg.getSenderId());
-                            System.out.println("[ChatService] Encrypted content (hex string): " + msg.getContent().substring(0, Math.min(16, msg.getContent().length())) + "...");
+                            long msgStart = System.currentTimeMillis();
                             
                             // NEW: Use friendId (the other user in conversation) for key derivation
                             String desKey = dhService.prepareMessageDecryption(friendId);
-                            System.out.println("[ChatService] DES key derived: " + desKey.substring(0, 8) + "...");
                             
                             // TRY: Pass hex string directly (not convert to binary)
                             // CryptoService.desEncrypt() returns hex string, so desDecrypt() probably expects hex string too
                             String ciphertextHex = msg.getContent();
-                            System.out.println("[ChatService] Attempting decrypt with HEX STRING input (no conversion)");
-                            System.out.println("[ChatService] Ciphertext hex: " + ciphertextHex);
-                            System.out.println("[ChatService] Key: " + desKey);
                             
                             String decryptedContent = cryptoService.desDecrypt(ciphertextHex, desKey);
-                            System.out.println("[ChatService] Decrypted bytes length: " + decryptedContent.length());
-                            
-                            // Log byte-by-byte as hex
-                            StringBuilder hexView = new StringBuilder();
-                            for (int i = 0; i < decryptedContent.length(); i++) {
-                                hexView.append(String.format("%02x ", (int) decryptedContent.charAt(i)));
-                            }
-                            System.out.println("[ChatService] Decrypted bytes (hex): " + hexView.toString());
-                            System.out.println("[ChatService] Decrypted raw content: '" + decryptedContent + "'");
                             
                             // Try to strip PKCS#7 padding if it exists
                             String cleanedContent = decryptedContent;
                             if (decryptedContent.length() > 0) {
                                 try {
                                     int lastByte = (int) decryptedContent.charAt(decryptedContent.length() - 1);
-                                    System.out.println("[ChatService] Last byte value: 0x" + String.format("%02x", lastByte) + " (" + lastByte + ")");
                                     if (lastByte > 0 && lastByte <= 8 && decryptedContent.length() >= lastByte) {
                                         cleanedContent = decryptedContent.substring(0, decryptedContent.length() - lastByte);
-                                        System.out.println("[ChatService] Stripped " + lastByte + " padding bytes");
-                                        System.out.println("[ChatService] Cleaned content: '" + cleanedContent + "'");
-                                    } else {
-                                        System.out.println("[ChatService] Last byte doesn't look like valid PKCS#7 padding");
                                     }
                                 } catch (Exception e) {
-                                    System.err.println("[ChatService] Failed to strip padding: " + e.getMessage());
+                                    // Keep original content
                                 }
                             }
                             
-                            System.out.println("[ChatService] Decrypted successfully: " + cleanedContent);
                             msg.setContent(cleanedContent);
+                            decryptedCount++;
+                            
+                            long msgTime = System.currentTimeMillis() - msgStart;
+                            if (idx % 10 == 0) {  // Log every 10th message to avoid spam
+                                System.out.println("[ChatService] Message " + idx + " decrypted in " + msgTime + "ms");
+                            }
                         } catch (Exception e) {
                             System.err.println("[ChatService] Failed to decrypt message " + idx + ": " + e.getMessage());
-                            e.printStackTrace();
                             // Keep encrypted content if decryption fails
                         }
                     }
+                    
+                    long decryptTotalTime = System.currentTimeMillis() - decryptStart;
+                    System.out.println("[ChatService] =====================================================");
+                    System.out.println("[ChatService] Decrypted " + decryptedCount + " messages in " + decryptTotalTime + "ms (avg " + (decryptedCount > 0 ? decryptTotalTime/decryptedCount : 0) + "ms/msg)");
+                    System.out.println("[ChatService] Network: " + networkTime + "ms | Decryption: " + decryptTotalTime + "ms");
+                    System.out.println("[ChatService] =====================================================");
                 }
                 
                 return messages;

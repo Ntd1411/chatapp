@@ -151,7 +151,11 @@ public class AuthService {
     }
 
     // NEW: Helper method to initialize DH service on login/auto-login
+    // WARNING: This is CPU-intensive and network I/O intensive, must be called on background thread!
     private void initializeDHService(User user) throws IOException {
+        long initStart = System.currentTimeMillis();
+        System.out.println("[AuthService] ⚠ Initializing DHService for: " + user.getUsername() + " (may take 1-3 seconds)");
+        
         // NEW: Set user ID first (for per-user secret exponent file)
         dhService.setUserId(user.get_id());
         
@@ -159,15 +163,27 @@ public class AuthService {
         boolean loaded = dhService.loadSecretExponentFromStorage();
         
         if (!loaded) {
-            // First time login: generate new secret exponent
-            System.out.println("First time login: generating new secret exponent for user: " + user.getUsername());
+            // First time login: generate new secret exponent (VERY CPU-intensive, ~1-2 seconds)
+            long genStart = System.currentTimeMillis();
+            System.out.println("[AuthService] First time login: generating new secret exponent...");
             dhService.generateSecretExponent();
+            long genTime = System.currentTimeMillis() - genStart;
+            System.out.println("[AuthService] Secret exponent generated in " + genTime + "ms");
         } else {
-            System.out.println("Existing secret exponent loaded from storage for user: " + user.getUsername());
+            System.out.println("[AuthService] ✓ Existing secret exponent loaded from storage");
         }
         
         // Always re-upload to ensure server has the correct g^a for this user
+        long uploadStart = System.currentTimeMillis();
+        System.out.println("[AuthService] Uploading DH public key to server...");
         dhService.uploadPublicExponent(user.get_id(), user.getUsername());
+        long uploadTime = System.currentTimeMillis() - uploadStart;
+        System.out.println("[AuthService] DH public key uploaded in " + uploadTime + "ms");
+        
+        long totalTime = System.currentTimeMillis() - initStart;
+        System.out.println("[AuthService] =====================================================" );
+        System.out.println("[AuthService] DHService initialization completed in " + totalTime + "ms");
+        System.out.println("[AuthService] =====================================================" );
     }
 
     public void setCurrentUser(User currentUser) {
