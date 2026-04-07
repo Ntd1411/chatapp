@@ -1640,8 +1640,21 @@ public class HomeController {
             try {
                 allUsers = chatService.getUsers();
                 Platform.runLater(() -> {
-                    // lặp qua từng người cập nhật trạng thái onl/off
+                    // lặp qua từng người cập nhật trạng thái onl/off và decrypt lastMessage
                     for (User u : allUsers) {
+                        // NEW: Decrypt lastMessage if exists
+                        if (u.getLastMessage() != null && u.getLastMessage().getContent() != null) {
+                            try {
+                                String encryptedContent = u.getLastMessage().getContent();
+                                String decryptedContent = decryptLastMessage(u.get_id(), encryptedContent);
+                                u.getLastMessage().setContent(decryptedContent);
+                                System.out.println("[LoadUsers] Decrypted lastMessage for user: " + u.getUsername() + " -> " + decryptedContent);
+                            } catch (Exception e) {
+                                System.err.println("[LoadUsers] Failed to decrypt lastMessage for user: " + u.getUsername() + " - " + e.getMessage());
+                                // Keep encrypted if fails
+                            }
+                        }
+                        
                         if (onlineUserIds.contains(u.get_id())) {
                             u.setOnline(true);
                         }
@@ -2561,5 +2574,40 @@ public class HomeController {
         System.out.println();
         
         return result.toString();
+    }
+    
+    // NEW: Decrypt lastMessage content (from sidebar preview)
+    private String decryptLastMessage(String otherUserId, String encryptedContent) throws Exception {
+        if (chatService.getDHService() == null) {
+            throw new Exception("DHService not available");
+        }
+        
+        if (encryptedContent == null || encryptedContent.isEmpty()) {
+            return encryptedContent;
+        }
+        
+        // Derive DES key using the other user's ID
+        String desKey = chatService.getDHService().prepareMessageDecryption(otherUserId);
+        
+        // Convert hex string to binary
+        String ciphertextBinary = hexStringToString(encryptedContent);
+        
+        // Decrypt
+        String decryptedContent = cryptoService.desDecrypt(ciphertextBinary, desKey);
+        
+        // Strip PKCS#7 padding
+        String cleanedContent = decryptedContent;
+        if (decryptedContent.length() > 0) {
+            try {
+                int lastByte = (int) decryptedContent.charAt(decryptedContent.length() - 1);
+                if (lastByte > 0 && lastByte <= 8 && decryptedContent.length() >= lastByte) {
+                    cleanedContent = decryptedContent.substring(0, decryptedContent.length() - lastByte);
+                }
+            } catch (Exception e) {
+                // Keep original if strip fails
+            }
+        }
+        
+        return cleanedContent;
     }
 }
