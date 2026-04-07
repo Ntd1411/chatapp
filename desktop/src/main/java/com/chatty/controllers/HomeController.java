@@ -214,69 +214,27 @@ public class HomeController {
 
         // có tin nhắn mới đến
         socketService.setOnNewMessage(message -> {
+            // NEW: Always decrypt message if it's from another user (might be encrypted)
+            String senderId = message.getSenderId();
+            String currentUserId = authService.getCurrentUser().get_id();
+            boolean isOwnMessage = senderId.equals(currentUserId);
+            
+            String decryptedContent = message.getContent();
+            if (!isOwnMessage && chatService.getDHService() != null) {
+                // This is a received message - try to decrypt it
+                try {
+                    decryptedContent = decryptLastMessage(senderId, message.getContent());
+                    message.setContent(decryptedContent);
+                    System.out.println("[Socket] ✓ Message decrypted from: " + senderId);
+                } catch (Exception e) {
+                    System.err.println("[Socket] Failed to decrypt message: " + e.getMessage());
+                    // Keep original if decryption fails
+                }
+            }
+            
             if (selectedUser != null && message.getSenderId().equals(selectedUser.get_id())) {
-                // nếu đang chat cùng mà có tin mới
+                // nếu đang chat cùng mà có tin mới (hiển thị ngay trong chat)
                 Platform.runLater(() -> {
-                    long totalDecryptStart = System.currentTimeMillis();
-                    
-                    // NEW: Decrypt message if it's encrypted
-                    try {
-                        if (chatService.getDHService() != null) {
-                            // Use selectedUser.get_id() (friendId) for consistent key derivation
-                            String friendId = selectedUser.get_id();
-                            System.out.println("[Socket] Encrypted message from: " + message.getSenderId());
-                            System.out.println("[Socket] Encrypted content (hex string): " + message.getContent().substring(0, Math.min(16, message.getContent().length())) + "...");
-                            
-                            String desKey = chatService.getDHService().prepareMessageDecryption(friendId);
-                            System.out.println("[Socket] DES key derived: " + desKey.substring(0, 8) + "...");
-                            
-                            // TRY: Pass hex string directly (not convert to binary)
-                            String ciphertextHex = message.getContent();
-                            System.out.println("[Socket] Attempting decrypt with HEX STRING input (no conversion)");
-                            
-                            long desDecryptStart = System.currentTimeMillis();
-                            String decryptedContent = cryptoService.desDecrypt(ciphertextHex, desKey);
-                            long desDecryptTime = System.currentTimeMillis() - desDecryptStart;
-                            
-                            System.out.println("[Socket] Decrypted bytes length: " + decryptedContent.length());
-                            System.out.println("[Socket] DES decryption time: " + desDecryptTime + "ms");
-                            
-                            // Log bytes as hex
-                            StringBuilder hexView = new StringBuilder();
-                            for (int i = 0; i < decryptedContent.length(); i++) {
-                                hexView.append(String.format("%02x ", (int) decryptedContent.charAt(i)));
-                            }
-                            System.out.println("[Socket] Decrypted bytes (hex): " + hexView.toString());
-                            System.out.println("[Socket] Decrypted raw content: '" + decryptedContent + "'");
-                            
-                            // Try to strip PKCS#7 padding
-                            String cleanedContent = decryptedContent;
-                            if (decryptedContent.length() > 0) {
-                                try {
-                                    int lastByte = (int) decryptedContent.charAt(decryptedContent.length() - 1);
-                                    System.out.println("[Socket] Last byte value: 0x" + String.format("%02x", lastByte) + " (" + lastByte + ")");
-                                    if (lastByte > 0 && lastByte <= 8 && decryptedContent.length() >= lastByte) {
-                                        cleanedContent = decryptedContent.substring(0, decryptedContent.length() - lastByte);
-                                        System.out.println("[Socket] Stripped " + lastByte + " padding bytes");
-                                    } else {
-                                        System.out.println("[Socket] Last byte doesn't look like valid PKCS#7 padding");
-                                    }
-                                } catch (Exception e) {
-                                    System.err.println("[Socket] Failed to strip padding: " + e.getMessage());
-                                }
-                            }
-                            
-                            message.setContent(cleanedContent);
-                            System.out.println("[Socket] Message decrypted successfully: " + cleanedContent);
-                            
-                            long totalDecryptTime = System.currentTimeMillis() - totalDecryptStart;
-                            System.out.println("[Socket] Total socket decryption time: " + totalDecryptTime + "ms");
-                        }
-                    } catch (Exception e) {
-                        System.err.println("[Socket] Failed to decrypt message: " + e.getMessage());
-                        e.printStackTrace();
-                    }
-                    
                     messages.add(message);
 
                     // vẽ lại giao diện chat để hiện tin mới
@@ -286,7 +244,6 @@ public class HomeController {
             } else {
                 // nếu đang không chat cùng mà có tin mới
                 Platform.runLater(() -> {
-                    String senderId = message.getSenderId();
                     this.allUsers.stream()
                             .filter(u -> u.get_id().equals(senderId))
                             .findFirst()
@@ -299,6 +256,7 @@ public class HomeController {
             }
 
             // trong trường hợp nào cũng vẽ lại giao diện để cập nhật nội dung preview tin nhắn mới nhất
+            // Message đã được decrypt ở trên nên lastMessage sẽ được hiển thị chính xác
             updateSidebarLastMessage(message);
         });
 
@@ -1981,9 +1939,27 @@ public class HomeController {
                     .findFirst()
                     .ifPresent(user -> {
                         User.LastMessage lastMsg = new User.LastMessage();
-                        lastMsg.setContent(message.getContent());
+                        
+                        // Content should already be decrypted from socket handler
+                        // But if not (edge case), try to decrypt it
+                        String contentToDisplay = message.getContent();
+                        boolean isMine = message.getSenderId().equals(authService.getCurrentUser().get_id());
+                        
+                        if (!isMine && isLikelyEncryptedHex(contentToDisplay)) {
+                            // Content looks like encrypted hex - try to decrypt
+                            try {
+                                String decryptedContent = decryptLastMessage(otherUserId, contentToDisplay);
+                                contentToDisplay = decryptedContent;
+                                System.out.println("[UpdateSidebar] ✓ Successfully decrypted lastMessage from: " + otherUserId);
+                            } catch (Exception e) {
+                                System.err.println("[UpdateSidebar] Failed to decrypt lastMessage: " + e.getMessage());
+                                // Keep original content if decryption fails
+                            }
+                        }
+                        
+                        lastMsg.setContent(contentToDisplay);
                         lastMsg.setCreatedAt(message.getCreatedAt());
-                        lastMsg.setIsMine(message.getSenderId().equals(authService.getCurrentUser().get_id()));
+                        lastMsg.setIsMine(isMine);
                         user.setLastMessage(lastMsg);
 
                         this.allUsers.remove(user);
@@ -1994,6 +1970,24 @@ public class HomeController {
                         }
                     });
         });
+    }
+    
+    // NEW: Check if content looks like encrypted hex string
+    private boolean isLikelyEncryptedHex(String content) {
+        if (content == null || content.isEmpty()) {
+            return false;
+        }
+        // Encrypted content should be hex string (only 0-9, a-f, A-F characters)
+        // Plaintext would have various characters
+        // If more than 80% of chars are hex digits, likely encrypted
+        int hexCount = 0;
+        for (char c : content.toCharArray()) {
+            if ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+                hexCount++;
+            }
+        }
+        double hexRatio = (double) hexCount / content.length();
+        return hexRatio > 0.8 && content.length() > 32; // At least 32 chars of mostly hex
     }
 
     // logic cập nhật trạng thái đang soạn tin
