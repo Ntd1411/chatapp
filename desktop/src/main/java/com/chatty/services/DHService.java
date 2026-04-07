@@ -203,6 +203,24 @@ public class DHService {
     }
 
     /**
+     * Check if the server already has a public key for this user.
+     * Returns true if public key exists on server, false otherwise.
+     * This avoids re-uploading the same key on every login.
+     */
+    public boolean checkPublicKeyExists(String userId) {
+        try {
+            // GET /dh-key/:userId
+            String publicKeyHex = apiService.getDHPublicKey(userId);
+            // If we get here without exception, key exists on server
+            return publicKeyHex != null && !publicKeyHex.isEmpty();
+        } catch (Exception e) {
+            // 404 or any other error means key doesn't exist
+            System.out.println("[DHService] Public key not found on server: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
      * OPTIMIZED: Prepare for message encryption: fetch recipient's g^a, compute shared secret, derive DES key.
      * Called before sending a message to recipientId.
      * NEW: Checks in-memory cache → disk cache → computes and saves to disk

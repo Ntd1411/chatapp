@@ -173,12 +173,23 @@ public class AuthService {
             System.out.println("[AuthService] ✓ Existing secret exponent loaded from storage");
         }
         
-        // Always re-upload to ensure server has the correct g^a for this user
-        long uploadStart = System.currentTimeMillis();
-        System.out.println("[AuthService] Uploading DH public key to server...");
-        dhService.uploadPublicExponent(user.get_id(), user.getUsername());
-        long uploadTime = System.currentTimeMillis() - uploadStart;
-        System.out.println("[AuthService] DH public key uploaded in " + uploadTime + "ms");
+        // NEW: Check if server already has public key before uploading
+        long checkStart = System.currentTimeMillis();
+        System.out.println("[AuthService] Checking if server has public key...");
+        boolean serverHasKey = dhService.checkPublicKeyExists(user.get_id());
+        long checkTime = System.currentTimeMillis() - checkStart;
+        System.out.println("[AuthService] Check completed in " + checkTime + "ms - Server has key: " + serverHasKey);
+        
+        // Only upload if server doesn't have the key yet
+        if (!serverHasKey) {
+            long uploadStart = System.currentTimeMillis();
+            System.out.println("[AuthService] Uploading DH public key to server...");
+            dhService.uploadPublicExponent(user.get_id(), user.getUsername());
+            long uploadTime = System.currentTimeMillis() - uploadStart;
+            System.out.println("[AuthService] DH public key uploaded in " + uploadTime + "ms");
+        } else {
+            System.out.println("[AuthService] ✓ Server already has public key, skipping upload");
+        }
         
         long totalTime = System.currentTimeMillis() - initStart;
         System.out.println("[AuthService] =====================================================" );
