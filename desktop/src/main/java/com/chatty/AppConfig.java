@@ -7,7 +7,7 @@ public class AppConfig {
     
     // ===== API & SOCKET CONFIG =====
     // Cho production (Render)
-    public static final String API_URL_PRODUCTION = "https://chatapp-production-e572.up.railway.app";
+    public static final String API_URL_PRODUCTION = "https://realtimechatapp-3xx5.onrender.com";
     
     // Cho local development
     public static final String API_URL_LOCAL = "http://localhost:3000";
