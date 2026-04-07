@@ -6,6 +6,7 @@ import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
+import javafx.geometry.Side;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
@@ -431,35 +432,58 @@ public class HomeController {
         HBox rightButtons = new HBox(10);
         rightButtons.setAlignment(Pos.CENTER_RIGHT);
 
-        // nút cài đặt
-        Button settingsBtn = new Button("Cài đặt");
+        // NEW: Single settings button with dropdown menu
+        Button settingsBtn = new Button();
         settingsBtn.getStyleClass().add("nav-button");
         FontIcon settingsIcon = new FontIcon("mdi2c-cog");
-        settingsIcon.setIconSize(18);
+        settingsIcon.setIconSize(20);
         settingsBtn.setGraphic(settingsIcon);
-        settingsBtn.setOnAction(e -> showSettings());
-
-        // nút xem profile
-        Button profileBtn = new Button("Thông tin cá nhân");
-        profileBtn.getStyleClass().add("nav-button");
-        FontIcon profileIcon = new FontIcon("mdi2a-account");
-        profileIcon.setIconSize(18);
-        profileBtn.setGraphic(profileIcon);
-        profileBtn.setOnAction(e -> showProfile());
-
-        // nút đăng xuất
-        Button logoutBtn = new Button("Đăng xuất");
-        logoutBtn.getStyleClass().add("nav-button");
-        FontIcon logoutIcon = new FontIcon("mdi2l-logout");
-        logoutIcon.setIconSize(18);
-        logoutBtn.setGraphic(logoutIcon);
-        logoutBtn.setOnAction(e -> {
+        settingsBtn.setStyle("-fx-padding: 8px;");
+        
+        // Create context menu
+        ContextMenu settingsMenu = new ContextMenu();
+        
+        // Theme submenu
+        MenuItem themeItem = new MenuItem("Giao diện");
+        Menu themeSubmenu = createThemeSubmenu();
+        themeItem.setGraphic(new FontIcon("mdi2p-palette"));
+        settingsMenu.getItems().add(themeSubmenu);
+        
+        // Profile
+        MenuItem profileItem = new MenuItem("Thông tin cá nhân");
+        profileItem.setGraphic(new FontIcon("mdi2a-account"));
+        profileItem.setOnAction(e -> showProfile());
+        settingsMenu.getItems().add(profileItem);
+        
+        // Export Secret Key
+        MenuItem exportKeyItem = new MenuItem("Xuất khóa bí mật");
+        exportKeyItem.setGraphic(new FontIcon("mdi2d-download"));
+        exportKeyItem.setOnAction(e -> exportSecretKey());
+        settingsMenu.getItems().add(exportKeyItem);
+        
+        // Import Secret Key
+        MenuItem importKeyItem = new MenuItem("Nhập khóa bí mật");
+        importKeyItem.setGraphic(new FontIcon("mdi2u-upload"));
+        importKeyItem.setOnAction(e -> importSecretKey());
+        settingsMenu.getItems().add(importKeyItem);
+        
+        // Separator
+        settingsMenu.getItems().add(new SeparatorMenuItem());
+        
+        // Logout
+        MenuItem logoutItem = new MenuItem("Đăng xuất");
+        logoutItem.setGraphic(new FontIcon("mdi2l-logout"));
+        logoutItem.setOnAction(e -> {
             authService.logout();
             socketService.disconnect();
             new LoginController().show(stage);
         });
-
-        rightButtons.getChildren().addAll(settingsBtn, profileBtn, logoutBtn);
+        settingsMenu.getItems().add(logoutItem);
+        
+        // Show menu when button is clicked
+        settingsBtn.setOnAction(e -> settingsMenu.show(settingsBtn, Side.BOTTOM, 0, 0));
+        
+        rightButtons.getChildren().add(settingsBtn);
         HBox.setHgrow(rightButtons, Priority.ALWAYS);
         navbar.getChildren().addAll(logoContainer, spacer, rightButtons);
 
@@ -2660,5 +2684,113 @@ public class HomeController {
         System.out.println("[Decryption] Total decryption time: " + totalTime + "ms");
         
         return cleanedContent;
+    }
+    
+    // NEW: Create theme submenu for settings dropdown
+    private Menu createThemeSubmenu() {
+        Menu themeMenu = new Menu("Giao diện");
+        themeMenu.setGraphic(new FontIcon("mdi2p-palette"));
+        
+        MenuItem lightItem = new MenuItem("Sáng (Light)");
+        lightItem.setOnAction(e -> ThemeService.setTheme(ThemeService.Theme.LIGHT));
+        
+        MenuItem darkItem = new MenuItem("Tối (Dark)");
+        darkItem.setOnAction(e -> ThemeService.setTheme(ThemeService.Theme.DARK));
+        
+        themeMenu.getItems().addAll(lightItem, darkItem);
+        return themeMenu;
+    }
+    
+    // NEW: Export secret key to file for device migration
+    private void exportSecretKey() {
+        if (authService == null || authService.getDHService() == null) {
+            showAlert("Lỗi", "Không thể tìm thấy khóa bí mật", Alert.AlertType.ERROR);
+            return;
+        }
+        
+        try {
+            DHService dhService = authService.getDHService();
+            String secretKeyHex = dhService.exportSecretExponent();
+            
+            if (secretKeyHex == null || secretKeyHex.isEmpty()) {
+                showAlert("Lỗi", "Khóa bí mật không tồn tại hoặc chưa được tạo", Alert.AlertType.ERROR);
+                return;
+            }
+            
+            // Open file chooser to select save location
+            FileChooser fileChooser = new FileChooser();
+            fileChooser.setTitle("Xuất khóa bí mật");
+            fileChooser.setInitialFileName("chatapp_secret_key_" + currentUser.getUsername() + ".dat");
+            fileChooser.getExtensionFilters().addAll(
+                    new FileChooser.ExtensionFilter("Khóa bí mật (.dat)", "*.dat"),
+                    new FileChooser.ExtensionFilter("Tất cả file", "*.*")
+            );
+            
+            File selectedFile = fileChooser.showSaveDialog(primaryStage);
+            if (selectedFile != null) {
+                // Write hex string to file
+                java.nio.file.Files.write(selectedFile.toPath(), secretKeyHex.getBytes());
+                
+                showAlert("Thành công", 
+                    "Khóa bí mật đã được xuất thành công.\n\n" +
+                    "Lưu ý: File này chứa thông tin nhạy cảm. Giữ nó an toàn!", 
+                    Alert.AlertType.INFORMATION);
+            }
+        } catch (Exception e) {
+            System.err.println("[ExportSecretKey] Error: " + e.getMessage());
+            e.printStackTrace();
+            showAlert("Lỗi", "Không thể xuất khóa bí mật: " + e.getMessage(), Alert.AlertType.ERROR);
+        }
+    }
+    
+    // NEW: Import secret key from file for device migration
+    private void importSecretKey() {
+        if (authService == null || authService.getDHService() == null) {
+            showAlert("Lỗi", "Dịch vụ Diffie-Hellman không khả dụng", Alert.AlertType.ERROR);
+            return;
+        }
+        
+        try {
+            // Open file chooser to select key file
+            FileChooser fileChooser = new FileChooser();
+            fileChooser.setTitle("Nhập khóa bí mật");
+            fileChooser.getExtensionFilters().addAll(
+                    new FileChooser.ExtensionFilter("Khóa bí mật (.dat)", "*.dat"),
+                    new FileChooser.ExtensionFilter("Tất cả file", "*.*")
+            );
+            
+            File selectedFile = fileChooser.showOpenDialog(primaryStage);
+            if (selectedFile != null) {
+                // Read hex string from file
+                String secretKeyHex = new String(java.nio.file.Files.readAllBytes(selectedFile.toPath())).trim();
+                
+                // Validate hex format (should be 512+ character hex string for 2048-bit key)
+                if (secretKeyHex.isEmpty()) {
+                    showAlert("Lỗi", "File không chứa dữ liệu khóa hợp lệ", Alert.AlertType.ERROR);
+                    return;
+                }
+                
+                if (!secretKeyHex.matches("[0-9a-fA-F]+")) {
+                    showAlert("Lỗi", "File không chứa khóa bí mật hợp lệ (không phải định dạng hex)", Alert.AlertType.ERROR);
+                    return;
+                }
+                
+                // Import secret exponent into DHService
+                DHService dhService = authService.getDHService();
+                dhService.importSecretExponent(secretKeyHex);
+                
+                // Clear DES keys cache since we have a new secret exponent
+                dhService.clearCache(true); // Clear both memory and disk cache
+                
+                showAlert("Thành công", 
+                    "Khóa bí mật đã được nhập thành công!\n\n" +
+                    "Lưu ý: Cache khóa mã hóa cũ đã được xóa. Các cuộc trò chuyện sẽ được tính toán lại.", 
+                    Alert.AlertType.INFORMATION);
+            }
+        } catch (Exception e) {
+            System.err.println("[ImportSecretKey] Error: " + e.getMessage());
+            e.printStackTrace();
+            showAlert("Lỗi", "Không thể nhập khóa bí mật: " + e.getMessage(), Alert.AlertType.ERROR);
+        }
     }
 }
