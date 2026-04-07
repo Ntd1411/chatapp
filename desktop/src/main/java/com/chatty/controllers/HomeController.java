@@ -97,9 +97,16 @@ public class HomeController {
         primaryStage.setResizable(true);
         primaryStage.centerOnScreen();
 
-        // NEW: Re-initialize DHService after successful login with the logged-in user
-        authService.reinitializeDHService(user);
+        // OPTIMIZATION: Re-initialize DHService on background thread to avoid UI lag
+        // (uploadPublicExponent() makes an API call)
         chatService.setDHService(authService.getDHService());
+        new Thread(() -> {
+            try {
+                authService.reinitializeDHService(user);
+            } catch (Exception e) {
+                System.err.println("[HomeController] Failed to reinitialize DHService: " + e.getMessage());
+            }
+        }).start();
 
         mainContainer = new BorderPane();
         mainContainer.getStyleClass().add("home-container");
@@ -119,7 +126,7 @@ public class HomeController {
 
         mainContainer.setCenter(centerContent);
 
-        // tải người dùng và nhóm có liên quan
+        // tải người dùng và nhóm có liên quan (already on background threads in loadUsers/loadGroups)
         loadUsers();
         loadGroups();
 
@@ -2589,11 +2596,9 @@ public class HomeController {
         // Derive DES key using the other user's ID
         String desKey = chatService.getDHService().prepareMessageDecryption(otherUserId);
         
-        // Convert hex string to binary
-        String ciphertextBinary = hexStringToString(encryptedContent);
-        
-        // Decrypt
-        String decryptedContent = cryptoService.desDecrypt(ciphertextBinary, desKey);
+        // CRITICAL: desDecrypt() expects HEX STRING input, NOT binary!
+        // Pass hex string directly without conversion
+        String decryptedContent = cryptoService.desDecrypt(encryptedContent, desKey);
         
         // Strip PKCS#7 padding
         String cleanedContent = decryptedContent;
