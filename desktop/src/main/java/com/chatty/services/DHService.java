@@ -139,6 +139,7 @@ public class DHService {
     /**
      * NEW: Clear the stored secret exponent from local storage.
      * Call this on logout/uninstall.
+     * Also clears all cached DES keys from disk.
      */
     public void deleteStoredSecretExponent() {
         if (currentDHKeyFile == null) {
@@ -151,6 +152,13 @@ public class DHService {
                 keyFile.delete();
                 System.out.println("✓ Deleted stored secret exponent for user: " + userId);
             }
+            
+            // NEW: Also clean up all DES keys on logout
+            deleteAllDesKeysFromStorage();
+            
+            // Clear memory caches
+            secretExponent = null;
+            desKeyCache.clear();
         } catch (Exception e) {
             System.err.println("Failed to delete secret exponent: " + e.getMessage());
         }
@@ -192,24 +200,33 @@ public class DHService {
     }
 
     /**
-     * Prepare for message encryption: fetch recipient's g^a, compute shared secret, derive DES key.
+     * OPTIMIZED: Prepare for message encryption: fetch recipient's g^a, compute shared secret, derive DES key.
      * Called before sending a message to recipientId.
+     * NEW: Checks in-memory cache → disk cache → computes and saves to disk
      */
     public String prepareMessageEncryption(String recipientId) {
-        // Check cache first
+        // 1. Check in-memory cache first
         if (desKeyCache.containsKey(recipientId)) {
-            System.out.println("[DH] DES key found in cache for recipient: " + recipientId);
+            System.out.println("[DH] ✓ DES key found in MEMORY cache for recipient: " + recipientId);
             return desKeyCache.get(recipientId);
         }
 
+        // 2. Check disk cache (NEW: OPTIMIZATION)
+        String cachedKey = loadDesKeyFromStorage(recipientId);
+        if (cachedKey != null) {
+            System.out.println("[DH] ✓ DES key found in DISK cache for recipient: " + recipientId);
+            desKeyCache.put(recipientId, cachedKey);  // Load back to memory cache
+            return cachedKey;
+        }
+
         try {
-            System.out.println("[DH] Preparing message encryption for recipient: " + recipientId);
+            System.out.println("[DH] ⚠ Computing DES key for recipient: " + recipientId + " (first time)");
             System.out.println("[DH] Secret exponent initialized: " + (secretExponent != null));
             System.out.println("[DH] Current user ID: " + userId);
             
             // Fetch recipient's dh_public_key from server
             // GET /users/dh-key/:recipientId
-            System.out.println("[DH] Fetching recipient's DH public key...");
+            System.out.println("[DH] Fetching recipient's DH public key from server...");
             String recipientPublicKeyHex = apiService.getDHPublicKey(recipientId);
 
             if (recipientPublicKeyHex == null || recipientPublicKeyHex.isEmpty()) {
@@ -228,8 +245,9 @@ public class DHService {
             String desKey = deriveDesKey(sharedSecret, userId, recipientId);
             System.out.println("[DH] DES key derived: " + desKey.substring(0, 8) + "...");
 
-            // Cache it
+            // Cache it in memory AND save to disk (NEW: OPTIMIZATION)
             desKeyCache.put(recipientId, desKey);
+            saveDesKeyToStorage(recipientId, desKey);
 
             return desKey;
         } catch (Exception e) {
@@ -240,18 +258,27 @@ public class DHService {
     }
 
     /**
-     * Prepare for message decryption: fetch sender's g^a, compute shared secret, derive DES key.
+     * OPTIMIZED: Prepare for message decryption: fetch sender's g^a, compute shared secret, derive DES key.
      * Called before decrypting a message from senderId.
+     * NEW: Checks in-memory cache → disk cache → computes and saves to disk
      */
     public String prepareMessageDecryption(String senderId) {
-        // Check cache first
+        // 1. Check in-memory cache first
         if (desKeyCache.containsKey(senderId)) {
-            System.out.println("[DH.prepareMessageDecryption] Key found in cache for sender: " + senderId);
+            System.out.println("[DH.prepareMessageDecryption] ✓ Key found in MEMORY cache for sender: " + senderId);
             return desKeyCache.get(senderId);
         }
 
+        // 2. Check disk cache (NEW: OPTIMIZATION)
+        String cachedKey = loadDesKeyFromStorage(senderId);
+        if (cachedKey != null) {
+            System.out.println("[DH.prepareMessageDecryption] ✓ Key found in DISK cache for sender: " + senderId);
+            desKeyCache.put(senderId, cachedKey);  // Load back to memory cache
+            return cachedKey;
+        }
+
         try {
-            System.out.println("[DH.prepareMessageDecryption] Preparing decryption for sender: " + senderId);
+            System.out.println("[DH.prepareMessageDecryption] ⚠ Computing DES key for sender: " + senderId + " (first time)");
             // Fetch sender's dh_public_key from server
             // GET /users/dh-key/:senderId
             String senderPublicKeyHex = apiService.getDHPublicKey(senderId);
@@ -270,14 +297,133 @@ public class DHService {
             // Derive DES key from shared secret
             String desKey = deriveDesKey(sharedSecret, userId, senderId);
 
-            // Cache it
+            // Cache it in memory AND save to disk (NEW: OPTIMIZATION)
             desKeyCache.put(senderId, desKey);
+            saveDesKeyToStorage(senderId, desKey);
 
             return desKey;
         } catch (Exception e) {
             System.err.println("[DH.prepareMessageDecryption] ERROR: " + e.getMessage());
             e.printStackTrace();
             throw new RuntimeException("Failed to prepare message decryption: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * NEW OPTIMIZATION: Save a DES key to disk storage.
+     * Creates file: ~/.chatapp/dh/deskey_<userId>_<otherUserId>.dat
+     */
+    private void saveDesKeyToStorage(String otherUserId, String desKey) {
+        if (userId == null) {
+            return;  // Silent fail if user ID not set
+        }
+        
+        try {
+            ensureStorageDirectoryExists();
+            
+            // Create canonical filename using sorted user IDs for consistency
+            String[] ids = {userId, otherUserId};
+            java.util.Arrays.sort(ids);
+            String desKeyFile = DH_STORAGE_DIR + File.separator + "deskey_" + ids[0] + "_" + ids[1] + ".dat";
+            
+            Files.write(Paths.get(desKeyFile), desKey.getBytes(StandardCharsets.UTF_8));
+            System.out.println("✓ Saved DES key to disk for conversation with: " + otherUserId);
+        } catch (Exception e) {
+            System.err.println("[DH] Failed to save DES key to storage: " + e.getMessage());
+            // Don't throw exception, just log it
+        }
+    }
+
+    /**
+     * NEW OPTIMIZATION: Load a DES key from disk storage.
+     * Reads from: ~/.chatapp/dh/deskey_<userId>_<otherUserId>.dat
+     * Returns the key if found, null otherwise.
+     */
+    private String loadDesKeyFromStorage(String otherUserId) {
+        if (userId == null) {
+            return null;  // Silent fail if user ID not set
+        }
+        
+        try {
+            // Create canonical filename using sorted user IDs for consistency
+            String[] ids = {userId, otherUserId};
+            java.util.Arrays.sort(ids);
+            String desKeyFile = DH_STORAGE_DIR + File.separator + "deskey_" + ids[0] + "_" + ids[1] + ".dat";
+            
+            File keyFile = new File(desKeyFile);
+            if (!keyFile.exists()) {
+                System.out.println("[DH] DES key file not found: " + desKeyFile);
+                return null;
+            }
+            
+            String desKey = new String(Files.readAllBytes(Paths.get(desKeyFile)), StandardCharsets.UTF_8).trim();
+            if (desKey.isEmpty()) {
+                System.out.println("[DH] DES key file is empty: " + desKeyFile);
+                return null;
+            }
+            
+            System.out.println("[DH] Loaded DES key from storage for: " + otherUserId);
+            return desKey;
+        } catch (Exception e) {
+            System.err.println("[DH] Failed to load DES key from storage: " + e.getMessage());
+            return null;  // Return null if loading fails
+        }
+    }
+
+    /**
+     * NEW: Delete DES key from disk storage when needed.
+     * Call this when ending a conversation or cleaning up.
+     */
+    public void deleteDesKeyFromStorage(String otherUserId) {
+        if (userId == null) {
+            return;
+        }
+        
+        try {
+            // Create canonical filename using sorted user IDs for consistency
+            String[] ids = {userId, otherUserId};
+            java.util.Arrays.sort(ids);
+            String desKeyFile = DH_STORAGE_DIR + File.separator + "deskey_" + ids[0] + "_" + ids[1] + ".dat";
+            
+            File keyFile = new File(desKeyFile);
+            if (keyFile.exists()) {
+                keyFile.delete();
+                System.out.println("✓ Deleted DES key from storage for: " + otherUserId);
+            }
+        } catch (Exception e) {
+            System.err.println("[DH] Failed to delete DES key from storage: " + e.getMessage());
+        }
+    }
+
+    /**
+     * NEW: Delete all DES keys from disk storage (for cleanup/logout).
+     */
+    public void deleteAllDesKeysFromStorage() {
+        if (userId == null) {
+            return;
+        }
+        
+        try {
+            File dhDir = new File(DH_STORAGE_DIR);
+            if (!dhDir.exists()) {
+                return;
+            }
+            
+            // Delete all deskey_* files for this user
+            File[] files = dhDir.listFiles((dir, name) -> name.startsWith("deskey_") && name.endsWith(".dat"));
+            if (files != null) {
+                int deletedCount = 0;
+                for (File file : files) {
+                    // Only delete files related to this user
+                    if (file.getName().contains(userId)) {
+                        file.delete();
+                        deletedCount++;
+                    }
+                }
+                System.out.println("✓ Deleted " + deletedCount + " DES keys from storage");
+            }
+        } catch (Exception e) {
+            System.err.println("[DH] Failed to delete all DES keys: " + e.getMessage());
         }
     }
 
@@ -340,15 +486,28 @@ public class DHService {
     public void importSecretExponent(String aHex) {
         try {
             this.secretExponent = new BigInteger(aHex, 16);
-            // Clear the cache since we may have a different exponent now
+            // Clear caches since we have a different exponent now
+            // DES keys computed with old exponent are no longer valid
             desKeyCache.clear();
+            deleteAllDesKeysFromStorage();  // Remove invalid stored keys
         } catch (Exception e) {
             throw new RuntimeException("Failed to import secret exponent: " + e.getMessage(), e);
         }
     }
 
     /**
-     * Clear the DES key cache (e.g., on logout or session reset).
+     * NEW: Clear the DES key cache (e.g., on logout or session reset).
+     * Also optionally remove from disk.
+     */
+    public void clearCache(boolean alsoClearDisk) {
+        desKeyCache.clear();
+        if (alsoClearDisk) {
+            deleteAllDesKeysFromStorage();
+        }
+    }
+
+    /**
+     * Legacy method: Clear only memory cache.
      */
     public void clearCache() {
         desKeyCache.clear();
