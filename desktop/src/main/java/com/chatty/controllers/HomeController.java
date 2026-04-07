@@ -2589,11 +2589,9 @@ public class HomeController {
         // Derive DES key using the other user's ID
         String desKey = chatService.getDHService().prepareMessageDecryption(otherUserId);
         
-        // Convert hex string to binary
-        String ciphertextBinary = hexStringToString(encryptedContent);
-        
-        // Decrypt
-        String decryptedContent = cryptoService.desDecrypt(ciphertextBinary, desKey);
+        // CRITICAL: desDecrypt() expects HEX STRING input, NOT binary!
+        // Pass hex string directly without conversion
+        String decryptedContent = cryptoService.desDecrypt(encryptedContent, desKey);
         
         // Strip PKCS#7 padding
         String cleanedContent = decryptedContent;
