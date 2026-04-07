@@ -216,6 +216,8 @@ public class HomeController {
             if (selectedUser != null && message.getSenderId().equals(selectedUser.get_id())) {
                 // nếu đang chat cùng mà có tin mới
                 Platform.runLater(() -> {
+                    long totalDecryptStart = System.currentTimeMillis();
+                    
                     // NEW: Decrypt message if it's encrypted
                     try {
                         if (chatService.getDHService() != null) {
@@ -231,8 +233,12 @@ public class HomeController {
                             String ciphertextHex = message.getContent();
                             System.out.println("[Socket] Attempting decrypt with HEX STRING input (no conversion)");
                             
+                            long desDecryptStart = System.currentTimeMillis();
                             String decryptedContent = cryptoService.desDecrypt(ciphertextHex, desKey);
+                            long desDecryptTime = System.currentTimeMillis() - desDecryptStart;
+                            
                             System.out.println("[Socket] Decrypted bytes length: " + decryptedContent.length());
+                            System.out.println("[Socket] DES decryption time: " + desDecryptTime + "ms");
                             
                             // Log bytes as hex
                             StringBuilder hexView = new StringBuilder();
@@ -261,6 +267,9 @@ public class HomeController {
                             
                             message.setContent(cleanedContent);
                             System.out.println("[Socket] Message decrypted successfully: " + cleanedContent);
+                            
+                            long totalDecryptTime = System.currentTimeMillis() - totalDecryptStart;
+                            System.out.println("[Socket] Total socket decryption time: " + totalDecryptTime + "ms");
                         }
                     } catch (Exception e) {
                         System.err.println("[Socket] Failed to decrypt message: " + e.getMessage());
@@ -2586,6 +2595,8 @@ public class HomeController {
     
     // NEW: Decrypt lastMessage content (from sidebar preview)
     private String decryptLastMessage(String otherUserId, String encryptedContent) throws Exception {
+        long startTime = System.currentTimeMillis();
+        
         if (chatService.getDHService() == null) {
             throw new Exception("DHService not available");
         }
@@ -2599,7 +2610,11 @@ public class HomeController {
         
         // CRITICAL: desDecrypt() expects HEX STRING input, NOT binary!
         // Pass hex string directly without conversion
+        long desDecryptStart = System.currentTimeMillis();
         String decryptedContent = cryptoService.desDecrypt(encryptedContent, desKey);
+        long desDecryptTime = System.currentTimeMillis() - desDecryptStart;
+        
+        System.out.println("[Decryption] DES decryption time: " + desDecryptTime + "ms");
         
         // Strip PKCS#7 padding
         String cleanedContent = decryptedContent;
@@ -2613,6 +2628,9 @@ public class HomeController {
                 // Keep original if strip fails
             }
         }
+        
+        long totalTime = System.currentTimeMillis() - startTime;
+        System.out.println("[Decryption] Total decryption time: " + totalTime + "ms");
         
         return cleanedContent;
     }

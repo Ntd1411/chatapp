@@ -194,6 +194,8 @@ public class ChatService {
             return null;
         }
 
+        long totalStart = System.currentTimeMillis();
+        
         try {
             System.out.println("[SendMessage] Starting...");
             System.out.println("   From: " + senderId);
@@ -202,7 +204,10 @@ public class ChatService {
             
             // NEW: Prepare message encryption using DH if available
             String encryptedContent = content;
+            long encryptionTime = 0;
+            
             if (dhService != null) {
+                long encryptStart = System.currentTimeMillis();
                 System.out.println("[Encryption] Preparing DH encryption...");
                 String desKey = dhService.prepareMessageEncryption(receiverId);
                 System.out.println("[Encryption] DES Key generated: " + desKey.substring(0, 8) + "...");
@@ -216,9 +221,16 @@ public class ChatService {
                 }
                 System.out.println("[Encryption] Plaintext bytes (hex): " + hexView.toString());
                 
+                long desEncryptStart = System.currentTimeMillis();
                 encryptedContent = cryptoService.desEncrypt(content, desKey);
+                long desEncryptTime = System.currentTimeMillis() - desEncryptStart;
+                
                 System.out.println("[Encryption] Ciphertext returned: '" + encryptedContent + "' (length: " + encryptedContent.length() + ")");
+                System.out.println("[Encryption] DES encryption time: " + desEncryptTime + "ms");
                 System.out.println("[Encryption] Message encrypted, new length: " + encryptedContent.length());
+                
+                encryptionTime = System.currentTimeMillis() - encryptStart;
+                System.out.println("[Encryption] Total encryption time: " + encryptionTime + "ms");
             } else {
                 System.out.println("[Encryption] DHService not available, sending plaintext");
             }
@@ -244,6 +256,14 @@ public class ChatService {
             System.out.println("[Socket] Sending message via socket...");
             socketService.sendMessage(receiverId, encryptedContent);
             System.out.println("[Socket] Message sent successfully!");
+
+            long totalTime = System.currentTimeMillis() - totalStart;
+            System.out.println("[SendMessage] =====================================================");
+            System.out.println("[SendMessage] Total send operation time: " + totalTime + "ms");
+            if (encryptionTime > 0) {
+                System.out.println("    └─ Encryption: " + encryptionTime + "ms");
+            }
+            System.out.println("[SendMessage] =====================================================");
 
             return localMsg;
         } catch (Exception e) {

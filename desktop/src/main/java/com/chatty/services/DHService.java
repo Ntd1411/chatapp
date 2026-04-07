@@ -205,16 +205,23 @@ public class DHService {
      * NEW: Checks in-memory cache → disk cache → computes and saves to disk
      */
     public String prepareMessageEncryption(String recipientId) {
+        long startTime = System.currentTimeMillis();
+        
         // 1. Check in-memory cache first
         if (desKeyCache.containsKey(recipientId)) {
-            System.out.println("[DH] ✓ DES key found in MEMORY cache for recipient: " + recipientId);
+            long elapsed = System.currentTimeMillis() - startTime;
+            System.out.println("[DH] ✓ DES key found in MEMORY cache for recipient: " + recipientId + " (" + elapsed + "ms)");
             return desKeyCache.get(recipientId);
         }
 
         // 2. Check disk cache (NEW: OPTIMIZATION)
+        long diskLoadStart = System.currentTimeMillis();
         String cachedKey = loadDesKeyFromStorage(recipientId);
         if (cachedKey != null) {
+            long diskLoadTime = System.currentTimeMillis() - diskLoadStart;
+            long totalTime = System.currentTimeMillis() - startTime;
             System.out.println("[DH] ✓ DES key found in DISK cache for recipient: " + recipientId);
+            System.out.println("    └─ Disk load time: " + diskLoadTime + "ms | Total: " + totalTime + "ms");
             desKeyCache.put(recipientId, cachedKey);  // Load back to memory cache
             return cachedKey;
         }
@@ -226,20 +233,25 @@ public class DHService {
             
             // Fetch recipient's dh_public_key from server
             // GET /users/dh-key/:recipientId
+            long networkStart = System.currentTimeMillis();
             System.out.println("[DH] Fetching recipient's DH public key from server...");
             String recipientPublicKeyHex = apiService.getDHPublicKey(recipientId);
+            long networkTime = System.currentTimeMillis() - networkStart;
 
             if (recipientPublicKeyHex == null || recipientPublicKeyHex.isEmpty()) {
                 throw new RuntimeException("Recipient's DH public key not found on server");
             }
 
             System.out.println("[DH] Recipient's DH public key fetched: " + recipientPublicKeyHex.substring(0, 8) + "...");
+            System.out.println("    └─ Network time: " + networkTime + "ms");
             BigInteger recipientPublicExp = new BigInteger(recipientPublicKeyHex, 16);
 
             // Compute shared secret: (g^b)^a mod p = g^(a*b) mod p
+            long cryptoStart = System.currentTimeMillis();
             System.out.println("[DH] Computing shared secret using modPow...");
             BigInteger sharedSecret = recipientPublicExp.modPow(secretExponent, P);
-            System.out.println("[DH] Shared secret computed successfully");
+            long cryptoTime = System.currentTimeMillis() - cryptoStart;
+            System.out.println("[DH] Shared secret computed successfully (" + cryptoTime + "ms)");
 
             // Derive DES key from shared secret
             String desKey = deriveDesKey(sharedSecret, userId, recipientId);
@@ -248,6 +260,14 @@ public class DHService {
             // Cache it in memory AND save to disk (NEW: OPTIMIZATION)
             desKeyCache.put(recipientId, desKey);
             saveDesKeyToStorage(recipientId, desKey);
+
+            long totalTime = System.currentTimeMillis() - startTime;
+            System.out.println("[DH] =====================================================");
+            System.out.println("[DH] Key computation summary for: " + recipientId);
+            System.out.println("    ├─ Network fetch: " + networkTime + "ms");
+            System.out.println("    ├─ Crypto (modPow): " + cryptoTime + "ms");
+            System.out.println("    └─ Total time: " + totalTime + "ms");
+            System.out.println("[DH] =====================================================");
 
             return desKey;
         } catch (Exception e) {
@@ -263,36 +283,48 @@ public class DHService {
      * NEW: Checks in-memory cache → disk cache → computes and saves to disk
      */
     public String prepareMessageDecryption(String senderId) {
+        long startTime = System.currentTimeMillis();
+        
         // 1. Check in-memory cache first
         if (desKeyCache.containsKey(senderId)) {
-            System.out.println("[DH.prepareMessageDecryption] ✓ Key found in MEMORY cache for sender: " + senderId);
+            long elapsed = System.currentTimeMillis() - startTime;
+            System.out.println("[DH.prepareMessageDecryption] ✓ Key found in MEMORY cache for sender: " + senderId + " (" + elapsed + "ms)");
             return desKeyCache.get(senderId);
         }
 
         // 2. Check disk cache (NEW: OPTIMIZATION)
+        long diskLoadStart = System.currentTimeMillis();
         String cachedKey = loadDesKeyFromStorage(senderId);
         if (cachedKey != null) {
+            long diskLoadTime = System.currentTimeMillis() - diskLoadStart;
+            long totalTime = System.currentTimeMillis() - startTime;
             System.out.println("[DH.prepareMessageDecryption] ✓ Key found in DISK cache for sender: " + senderId);
+            System.out.println("    └─ Disk load time: " + diskLoadTime + "ms | Total: " + totalTime + "ms");
             desKeyCache.put(senderId, cachedKey);  // Load back to memory cache
             return cachedKey;
         }
 
         try {
             System.out.println("[DH.prepareMessageDecryption] ⚠ Computing DES key for sender: " + senderId + " (first time)");
+            
             // Fetch sender's dh_public_key from server
             // GET /users/dh-key/:senderId
+            long networkStart = System.currentTimeMillis();
             String senderPublicKeyHex = apiService.getDHPublicKey(senderId);
+            long networkTime = System.currentTimeMillis() - networkStart;
 
             if (senderPublicKeyHex == null || senderPublicKeyHex.isEmpty()) {
                 throw new RuntimeException("Sender's DH public key not found on server");
             }
 
-            System.out.println("[DH.prepareMessageDecryption] Fetched sender's public key");
+            System.out.println("[DH.prepareMessageDecryption] Fetched sender's public key (" + networkTime + "ms)");
             BigInteger senderPublicExp = new BigInteger(senderPublicKeyHex, 16);
 
             // Compute shared secret: (g^a_sender)^a_receiver mod p = g^(a_receiver*a_sender) mod p
+            long cryptoStart = System.currentTimeMillis();
             BigInteger sharedSecret = senderPublicExp.modPow(secretExponent, P);
-            System.out.println("[DH.prepareMessageDecryption] Shared secret computed");
+            long cryptoTime = System.currentTimeMillis() - cryptoStart;
+            System.out.println("[DH.prepareMessageDecryption] Shared secret computed (" + cryptoTime + "ms)");
 
             // Derive DES key from shared secret
             String desKey = deriveDesKey(sharedSecret, userId, senderId);
@@ -300,6 +332,14 @@ public class DHService {
             // Cache it in memory AND save to disk (NEW: OPTIMIZATION)
             desKeyCache.put(senderId, desKey);
             saveDesKeyToStorage(senderId, desKey);
+
+            long totalTime = System.currentTimeMillis() - startTime;
+            System.out.println("[DH] =====================================================");
+            System.out.println("[DH] Key computation summary for decryption: " + senderId);
+            System.out.println("    ├─ Network fetch: " + networkTime + "ms");
+            System.out.println("    ├─ Crypto (modPow): " + cryptoTime + "ms");
+            System.out.println("    └─ Total time: " + totalTime + "ms");
+            System.out.println("[DH] =====================================================");
 
             return desKey;
         } catch (Exception e) {
@@ -433,6 +473,8 @@ public class DHService {
      * DES_key = first 8 bytes (16 hex chars) of HMAC-SHA256(shared_secret, canonical_user_pair)
      */
     private String deriveDesKey(BigInteger sharedSecret, String userId, String otherUserId) {
+        long startTime = System.currentTimeMillis();
+        
         try {
             // NEW: Use both user IDs in sorted order for CANONICAL representation
             // This ensures both A and B derive the SAME key from the SAME shared secret
@@ -449,10 +491,12 @@ public class DHService {
             byte[] canonicalPairBytes = canonicalPair.getBytes();
 
             // HMAC-SHA256
+            long hmacStart = System.currentTimeMillis();
             Mac hmac = Mac.getInstance("HmacSHA256");
             SecretKeySpec secretKey = new SecretKeySpec(sharedSecretBytes, 0, sharedSecretBytes.length, "HmacSHA256");
             hmac.init(secretKey);
             byte[] digestBytes = hmac.doFinal(canonicalPairBytes);
+            long hmacTime = System.currentTimeMillis() - hmacStart;
 
             // Convert first 8 bytes to hex (16 hex characters for DES key)
             StringBuilder desKeyHex = new StringBuilder();
@@ -461,7 +505,12 @@ public class DHService {
             }
 
             String finalKey = desKeyHex.toString();
+            long totalTime = System.currentTimeMillis() - startTime;
+            
             System.out.println("[DH.deriveDesKey] Generated key: " + finalKey);
+            System.out.println("    ├─ HMAC-SHA256: " + hmacTime + "ms");
+            System.out.println("    └─ Total: " + totalTime + "ms");
+            
             return finalKey;
         } catch (Exception e) {
             throw new RuntimeException("Failed to derive DES key: " + e.getMessage(), e);
