@@ -24,7 +24,7 @@ public class LoginController {
 
     public void show(Stage primaryStage) {
         primaryStage.setTitle("Kma Chatty - Đăng nhập");
-        primaryStage.setResizable(false);
+        primaryStage.setResizable(true);
         primaryStage.centerOnScreen();
 
         // khung chứa chính
@@ -134,7 +134,7 @@ public class LoginController {
 
         // phần bên phải - ảnh và lời chào mừng
         VBox rightPane = new VBox();
-        rightPane.setPrefWidth(550);
+        HBox.setHgrow(rightPane, Priority.ALWAYS);
         rightPane.getStyleClass().add("login-pattern-pane");
         Label patternTitle = new Label("Chào mừng trở lại!");
         patternTitle.getStyleClass().add("pattern-title");
@@ -186,6 +186,9 @@ public class LoginController {
         Scene scene = new Scene(mainContainer, 1000, 600);
         scene.getStylesheets().add(getClass().getResource("/styles.css").toExternalForm());
         primaryStage.setScene(scene);
+        mainContainer.applyCss();
+        mainContainer.layout();
+        primaryStage.sizeToScene();
         primaryStage.show();
 
         Platform.runLater(mainContainer::requestFocus);

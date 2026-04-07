@@ -552,7 +552,8 @@ public class HomeController {
         createGroupBtn.setManaged(false);
         createGroupBtn.setOnAction(e -> showCreateGroupDialog());
 
-        sidebarHeader.getChildren().addAll(tabButtons, searchBox, filterContainer, createGroupBtn);
+        // sidebarHeader.getChildren().addAll(tabButtons, searchBox, filterContainer, createGroupBtn);
+        sidebarHeader.getChildren().addAll(searchBox, filterContainer, createGroupBtn);
         sidebarHeader.setId("sidebarHeader");
 
         // danh sách người dùng
