@@ -22,7 +22,8 @@ public class ApiService {
                 .cookieJar(cookieJar)
                 .build();
         this.gson = new Gson();
-        System.out.println("API Base URL: " + BASE_URL + " (Môi trường: " + AppConfig.getEnvironmentName() + ")");
+        // Removed verbose logging that causes console lag
+        // System.out.println("API Base URL: " + BASE_URL + " (Môi trường: " + AppConfig.getEnvironmentName() + ")");
     }
 
     private static class MemoryCookieJar implements CookieJar {
