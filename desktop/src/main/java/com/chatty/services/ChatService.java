@@ -128,18 +128,17 @@ public class ChatService {
                             System.out.println("[ChatService] Encrypted content (hex string): " + msg.getContent().substring(0, Math.min(16, msg.getContent().length())) + "...");
                             
                             // NEW: Use friendId (the other user in conversation) for key derivation
-                            // This ensures we derive the SAME key regardless of whether we sent or received the message
                             String desKey = dhService.prepareMessageDecryption(friendId);
                             System.out.println("[ChatService] DES key derived: " + desKey.substring(0, 8) + "...");
                             
-                            // NEW: Convert hex string to binary before decryption!
-                            // The ciphertext is stored as hex string in DB, but desDecrypt expects binary
+                            // TRY: Pass hex string directly (not convert to binary)
+                            // CryptoService.desEncrypt() returns hex string, so desDecrypt() probably expects hex string too
                             String ciphertextHex = msg.getContent();
-                            String ciphertextBinary = hexStringToString(ciphertextHex);
-                            System.out.println("[ChatService] Converted hex (length " + ciphertextHex.length() + ") to binary string (length " + ciphertextBinary.length() + ")");
-                            System.out.println("[ChatService] Passing to desDecrypt: ciphertext binary (length " + ciphertextBinary.length() + "), key: " + desKey);
+                            System.out.println("[ChatService] Attempting decrypt with HEX STRING input (no conversion)");
+                            System.out.println("[ChatService] Ciphertext hex: " + ciphertextHex);
+                            System.out.println("[ChatService] Key: " + desKey);
                             
-                            String decryptedContent = cryptoService.desDecrypt(ciphertextBinary, desKey);
+                            String decryptedContent = cryptoService.desDecrypt(ciphertextHex, desKey);
                             System.out.println("[ChatService] Decrypted bytes length: " + decryptedContent.length());
                             
                             // Log byte-by-byte as hex
@@ -153,7 +152,6 @@ public class ChatService {
                             // Try to strip PKCS#7 padding if it exists
                             String cleanedContent = decryptedContent;
                             if (decryptedContent.length() > 0) {
-                                // PKCS#7 padding: last byte indicates padding length
                                 try {
                                     int lastByte = (int) decryptedContent.charAt(decryptedContent.length() - 1);
                                     System.out.println("[ChatService] Last byte value: 0x" + String.format("%02x", lastByte) + " (" + lastByte + ")");

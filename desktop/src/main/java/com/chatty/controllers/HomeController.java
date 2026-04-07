@@ -220,11 +220,11 @@ public class HomeController {
                             String desKey = chatService.getDHService().prepareMessageDecryption(friendId);
                             System.out.println("[Socket] DES key derived: " + desKey.substring(0, 8) + "...");
                             
-                            // NEW: Convert hex string to binary before decryption!
-                            String ciphertextBinary = hexStringToString(message.getContent());
-                            System.out.println("[Socket] Converted hex to binary string");
+                            // TRY: Pass hex string directly (not convert to binary)
+                            String ciphertextHex = message.getContent();
+                            System.out.println("[Socket] Attempting decrypt with HEX STRING input (no conversion)");
                             
-                            String decryptedContent = cryptoService.desDecrypt(ciphertextBinary, desKey);
+                            String decryptedContent = cryptoService.desDecrypt(ciphertextHex, desKey);
                             System.out.println("[Socket] Decrypted bytes length: " + decryptedContent.length());
                             
                             // Log bytes as hex
