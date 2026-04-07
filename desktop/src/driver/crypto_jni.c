@@ -139,7 +139,10 @@ JNIEXPORT jstring JNICALL Java_com_chatty_services_CryptoService_desDecrypt(
         return NULL;
     }
     
-    // Convert hex to bytes
+    // Prepare request FIRST (before using req fields)
+    memset(&req, 0, sizeof(req));
+    
+    // THEN convert hex to bytes into req.input
     int input_len = hex_to_bytes(cipher_str, req.input, MAX_CRYPTO_DATA);
     if (input_len < 0) {
         fprintf(stderr, "Invalid hex string\n");
@@ -149,8 +152,7 @@ JNIEXPORT jstring JNICALL Java_com_chatty_services_CryptoService_desDecrypt(
         return NULL;
     }
     
-    // Prepare request
-    memset(&req, 0, sizeof(req));
+    // Set input length and mode
     req.input_len = input_len;
     req.mode = 1; // decrypt
     
