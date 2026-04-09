@@ -2776,9 +2776,24 @@ public class HomeController {
                 // Clear DES keys cache since we have a new secret exponent
                 dhService.clearCache(true); // Clear both memory and disk cache
                 
+                // NEW: Reload messages immediately if viewing a conversation
+                Platform.runLater(() -> {
+                    if (selectedUser != null) {
+                        System.out.println("[ImportSecretKey] Reloading messages for user: " + selectedUser.getUsername());
+                        loadMessages();  // Reload messages with new DES key
+                    } else if (selectedGroup != null) {
+                        System.out.println("[ImportSecretKey] Reloading messages for group: " + selectedGroup.getName());
+                        loadGroupMessages();  // Reload group messages with new DES key
+                    }
+                    
+                    // NEW: Reload sidebar to update last message previews with decryption
+                    System.out.println("[ImportSecretKey] Reloading sidebar preview messages...");
+                    updateListViewBasedOnFilterAndSearch();
+                });
+                
                 showAlert("Thành công", 
                     "Khóa bí mật đã được nhập thành công!\n\n" +
-                    "Lưu ý: Cache khóa mã hóa cũ đã được xóa. Các cuộc trò chuyện sẽ được tính toán lại.", 
+                    "Tin nhắn đã được tải lại với khóa mới. Bạn có thể xem các cuộc hội thoại cũ ngay bây giờ.", 
                     Alert.AlertType.INFORMATION);
             }
         } catch (Exception e) {

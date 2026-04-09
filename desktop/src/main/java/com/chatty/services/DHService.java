@@ -560,6 +560,11 @@ public class DHService {
             // DES keys computed with old exponent are no longer valid
             desKeyCache.clear();
             deleteAllDesKeysFromStorage();  // Remove invalid stored keys
+            
+            // NEW: Save the imported secret exponent to disk!
+            // This ensures it persists after logout/login
+            saveSecretExponentToStorage();
+            System.out.println("[DHService] ✓ Imported secret exponent saved to disk for persistence");
         } catch (Exception e) {
             throw new RuntimeException("Failed to import secret exponent: " + e.getMessage(), e);
         }
