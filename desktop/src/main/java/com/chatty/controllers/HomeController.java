@@ -258,6 +258,7 @@ public class HomeController {
             // trong trường hợp nào cũng vẽ lại giao diện để cập nhật nội dung preview tin nhắn mới nhất
             // Message đã được decrypt ở trên nên lastMessage sẽ được hiển thị chính xác
             updateSidebarLastMessage(message);
+            loadUsers();
         });
 
         // khi người khác xem tin nhắn của mình lúc đang chat
