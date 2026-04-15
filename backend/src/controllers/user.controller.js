@@ -171,6 +171,14 @@ module.exports.uploadDHPublicKey = async (req, res) => {
       return res.status(400).json({ message: "Invalid DH key format (must be hex)" });
     }
     
+    // Check if user already has a DH public key
+    const existingUser = await User.findById(req.user.id);
+    if (existingUser && existingUser.dh_public_key) {
+      return res.status(400).json({ 
+        message: "DH public key already exists. Cannot overwrite existing key" 
+      });
+    }
+    
     const user = await User.findByIdAndUpdate(
       req.user.id,
       { dh_public_key },
