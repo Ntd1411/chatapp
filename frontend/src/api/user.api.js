@@ -7,11 +7,7 @@ export const userAPI = {
   uploadAvatar: (file) => {
     const formData = new FormData();
     formData.append('avatar', file);
-    return api.patch('/users/upload-avatar', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    return api.patch('/users/upload-avatar', formData);
   },
 
   // Search by keyword

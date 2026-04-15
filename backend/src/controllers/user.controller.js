@@ -66,11 +66,14 @@ module.exports.uploadAvatar = async (req, res) => {
   try {
     const userId = req.user.id;
     const avatar = req.body.avatar;
-    if (!avatar) {
+    
+    // Validate avatar is a non-empty string
+    if (!avatar || typeof avatar !== 'string' || avatar.trim() === '') {
       return res.status(400).json({
-        message: "Bạn chưa upload avatar"
+        message: "Invalid avatar: Bạn chưa upload avatar thành công"
       })
     }
+
     // save avatar
     const user = await User.findByIdAndUpdate(
       userId, {
@@ -86,6 +89,7 @@ module.exports.uploadAvatar = async (req, res) => {
     })
   } catch (error) {
     console.log(error);
+    console.log("Lỗi upload avatar");
     return res.status(500).json({
       message: "Lỗi server"
     })

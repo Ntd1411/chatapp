@@ -16,6 +16,12 @@ api.interceptors.request.use(
     if (token) {
       requestConfig.headers.Authorization = `Bearer ${token}`;
     }
+    
+    // Nếu là FormData, xóa Content-Type để browser tự set multipart/form-data
+    if (requestConfig.data instanceof FormData) {
+      delete requestConfig.headers['Content-Type'];
+    }
+    
     return requestConfig;
   },
   (error) => Promise.reject(error)
