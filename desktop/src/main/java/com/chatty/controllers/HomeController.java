@@ -1926,6 +1926,7 @@ public class HomeController {
 
         // xóa sạch nội dung trong trường nhập tin nhắn mỗi khi gửi đi
         messageInput.clear();
+        loadUsers();
     }
 
     // cập nhật các tin nhắn cuối cùng ở vùng cạnh bên (chứa danh sách người dùng/nhóm)
